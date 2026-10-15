@@ -115,7 +115,7 @@ test('ics has only future events, stable UIDs, CRLF', () => {
   assert.ok(ics.startsWith('BEGIN:VCALENDAR\r\n'));
   assert.ok(ics.includes('UID:lifecounter-p1-s1e9@timothyhadfield.github.io'));
   assert.ok(!ics.includes('lifecounter-p1-s5e8@'), 'past milestone should be skipped');
-  assert.ok(ics.includes('SUMMARY:Tim\\, Jr: 1 billion seconds'));
+  assert.ok(ics.includes('SUMMARY:Tim\\, Jr turns 1 billion seconds'));
   assert.ok(/DTSTART:\d{8}T\d{6}Z/.test(ics), 'timed event when birth time known');
   const events = ics.split('BEGIN:VEVENT').length - 1;
   assert.strictEqual(events, ics.split('END:VEVENT').length - 1);
@@ -125,6 +125,33 @@ test('ics without birth time uses all-day events only', () => {
   const ics = L.buildIcs([{ id: 'p2', name: 'Sam', date: '2004-03-15', time: null }], new Date(2026, 9, 15));
   assert.ok(!/DTSTART:\d{8}T/.test(ics));
   assert.ok(ics.includes('DTSTART;VALUE=DATE:'));
+});
+
+test('passed: ages freeze at the passed date', () => {
+  const p = { id: 'r', name: 'Robbie', date: '1940-05-01', time: null, died: '2020-03-03' };
+  const end = L.asOf(p, new Date(2026, 9, 15));
+  const a = L.calendarAge(L.birthDate(p), end);
+  assert.deepStrictEqual([a.years, a.months, a.days], [79, 10, 2]);
+  const alive = { id: 's', name: 'Sam', date: '2000-01-01', time: null };
+  const now = new Date(2026, 9, 15);
+  assert.strictEqual(L.asOf(alive, now), now);
+});
+
+test('passed: titles say "would have" only after the passed date', () => {
+  const p = { id: 'r', name: 'Robbie', date: '1990-01-01', time: null, died: '2015-06-01' };
+  const ms = L.milestones(L.birthDate(p));
+  const before = ms.find(m => m.key === 's5e8');
+  const after = ms.find(m => m.key === 's1e9');
+  assert.strictEqual(L.eventTitle(p, before), 'Robbie turns 500 million seconds');
+  assert.strictEqual(L.eventTitle(p, after), 'Robbie would have turned 1 billion seconds');
+  const planet = ms.find(m => m.key === 'pMars10');
+  assert.strictEqual(L.eventTitle(p, planet), "Robbie's 10th Mars birthday");
+});
+
+test('passed: future "would have" events stay in the calendar file', () => {
+  const p = { id: 'r', name: 'Robbie', date: '1990-01-01', time: null, died: '2015-06-01' };
+  const ics = L.buildIcs([p], new Date(2026, 9, 15));
+  assert.ok(ics.includes('SUMMARY:Robbie would have turned 1.5 billion seconds'));
 });
 
 console.log(`${passed} passed, ${failed} failed`);

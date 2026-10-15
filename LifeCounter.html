@@ -65,6 +65,29 @@
   .ms.past { opacity: .5; }
   .ms.past .lbl::before { content: "✓ "; color: var(--good); }
   .ms.up .lbl { color: var(--accent); font-weight: 600; }
+  .ms.past.would .lbl::before { content: ""; }
+  .passed { font-size: 13px; color: var(--muted); font-style: italic; margin-bottom: 2px; }
+
+  /* Compare */
+  .cmpbtn { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--line); display: inline-grid; place-items: center; transition: transform .1s; }
+  .cmpbtn:active { transform: scale(.9); }
+  .cmpbtn svg { width: 16px; height: 16px; stroke: var(--accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .cmp-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .cmp-head h3 { margin: 0; }
+  .cmp-head select {
+    font: inherit; font-size: 16px; font-weight: 600; color: var(--accent); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 10px; padding: 6px 28px 6px 10px; -webkit-appearance: none; appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--accent) 50%), linear-gradient(135deg, var(--accent) 50%, transparent 50%);
+    background-position: right 14px center, right 9px center; background-size: 5px 5px; background-repeat: no-repeat;
+  }
+  .cmp-sum { padding: 8px 12px; border-radius: 10px; background: var(--accent-soft); margin-bottom: 6px; font-size: 14px; }
+  .cmp { display: grid; grid-template-columns: 0.9fr 1.1fr 1.1fr 1fr; column-gap: 8px; font-size: 13px; }
+  .cmp > div { padding: 6px 0; border-bottom: 1px solid var(--line); min-width: 0; overflow-wrap: anywhere; }
+  .cmp .h { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  .cmp .k { color: var(--muted); }
+  .cmp .d { color: var(--accent); text-align: right; }
+  .pick { display: flex; flex-direction: column; gap: 6px; }
+  .pick .btn { text-align: left; }
 
   /* Switch */
   .sw { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
@@ -229,14 +252,16 @@ function setTab(t) {
 
 function renderLive() {
   const el = $('#v-live'); if (!el) return;
-  const p = person(), b = L.birthDate(p), now = new Date();
-  const a = L.ages(b, now), c = a.calendar;
+  const p = person(), b = L.birthDate(p), now = new Date(), end = L.asOf(p, now), gone = end < now;
+  const a = L.ages(b, end), c = a.calendar;
   const next = L.milestones(b).find(m => m.date > now);
+  const wouldBe = gone ? L.calendarAge(b, now) : null;
   el.innerHTML = `
-    <div class="ph"><h2>${esc(p.name)}</h2></div>
-    <div class="cal num">${c.years}y ${c.months}m ${c.days}d ${c.hours}h ${String(c.minutes).padStart(2, '0')}m ${String(c.seconds).padStart(2, '0')}s</div>
+    <div class="ph"><h2>${esc(p.name)}</h2>${compareBtn(p)}</div>
+    ${gone ? `<div class="passed">Passed ${dateStr(end)} · would be ${wouldBe.years} today</div>` : ''}
+    <div class="cal num">${gone ? 'Lived ' : ''}${c.years}y ${c.months}m ${c.days}d ${c.hours}h ${String(c.minutes).padStart(2, '0')}m ${String(c.seconds).padStart(2, '0')}s</div>
     <div class="big num">${fmt(Math.floor(a.seconds))}</div>
-    <div class="bigunit">seconds old</div>
+    <div class="bigunit">${gone ? 'seconds lived' : 'seconds old'}</div>
     <div class="rows num">
       <div class="row"><span class="muted">Years</span><b>${fmt(a.years, 8)}</b></div>
       <div class="row"><span class="muted">Months</span><b>${fmt(a.months)}</b></div>
@@ -245,17 +270,18 @@ function renderLive() {
       <div class="row"><span class="muted">Hours</span><b>${fmt(Math.floor(a.hours))}</b></div>
       <div class="row"><span class="muted">Minutes</span><b>${fmt(Math.floor(a.minutes))}</b></div>
     </div>
-    ${next ? `<div class="next"><div class="t">Next: ${esc(next.label)}</div>
+    ${next ? `<div class="next"><div class="t">${gone ? 'Would have hit' : 'Next'}: ${esc(next.label)}</div>
       <div class="num">${dateStr(next.date, next.timed && p.time)} · ${rel(next.date, now)}</div></div>` : ''}
     ${p.time ? '' : '<div class="approx">No birth time, so counting from noon.</div>'}`;
 }
 
 function renderMilestones(jump) {
   const el = $('#v-ms'); if (!el) return;
-  const p = person(), b = L.birthDate(p), now = new Date();
+  const p = person(), b = L.birthDate(p), now = new Date(), died = L.diedDate(p);
   const all = L.milestones(b);
   const nextKey = (all.find(m => m.date > now) || {}).key;
   const list = state.showPast ? all : all.filter(m => m.date > now);
+  const label = m => died && m.date > died ? 'Would have: ' + m.label : m.label;
   el.innerHTML = `
     <div class="ph"><h2>Milestones</h2>
       <label class="sw"><input type="checkbox" data-past ${state.showPast ? 'checked' : ''}><i></i>Past</label>
@@ -263,8 +289,8 @@ function renderMilestones(jump) {
       <button class="q" data-help="ics">?</button>
     </div>
     <div class="scroll">
-      ${list.map(m => `<div class="ms ${m.date <= now ? 'past' : ''} ${m.key === nextKey ? 'up' : ''}">
-        <div class="lbl">${esc(m.label)}</div><div class="when num">${rel(m.date, now)}</div>
+      ${list.map(m => `<div class="ms ${m.date <= now ? (died && m.date > died ? 'past would' : 'past') : ''} ${m.key === nextKey ? 'up' : ''}">
+        <div class="lbl">${esc(label(m))}</div><div class="when num">${rel(m.date, now)}</div>
         <div class="d num">${dateStr(m.date, m.timed && p.time)}</div><div></div>
       </div>`).join('')}
     </div>`;
@@ -281,11 +307,11 @@ function keepScroll(id, fn) {
 
 function renderFacts() {
   const el = $('#v-facts'); if (!el) return;
-  const p = person(), b = L.birthDate(p), now = new Date(), f = L.facts(b, now);
+  const p = person(), b = L.birthDate(p), now = L.asOf(p, new Date()), f = L.facts(b, now);
   const g = f.golden.date > now ? `${dateStr(f.golden.date)} (${f.golden.age})` : `✓ at ${f.golden.age} (${f.golden.date.getFullYear()})`;
   const items = [
     ['Born on a', f.bornOn],
-    ['Next birthday', `${f.turning} on a ${f.nextBirthdayWeekday}`],
+    ...(p.died ? [] : [['Next birthday', `${f.turning} on a ${f.nextBirthdayWeekday}`]]),
     ['Zodiac', f.zodiac],
     ['Chinese zodiac', f.chinese + (f.chineseExact ? '' : ' (by year)')],
     ['Birthstone', f.birthstone],
@@ -318,15 +344,14 @@ function renderFriends() {
   const pairs = others.map(o => {
     const c = L.compare(b, L.birthDate(o));
     const gap = span(new Date(0), new Date(c.gapMs));
-    const double = c.doubleAgeDay;
-    const who = c.aIsOlder ? `${esc(p.name)} was twice ${esc(o.name)}'s age` : `${esc(o.name)} was twice ${esc(p.name)}'s age`;
-    return `<div class="pair"><div class="n">${esc(o.name)} <span class="muted">· ${c.gapMs === 0 ? 'same age' : (c.aIsOlder ? 'younger' : 'older') + ' by ' + gap}</span></div>
+    const twice = c.aIsOlder ? twiceLine(p, o, c.doubleAgeDay, 'div class="s num"') : twiceLine(o, p, c.doubleAgeDay, 'div class="s num"');
+    return `<div class="pair"><div class="n" style="display:flex;align-items:center;gap:8px"><span style="flex:1">${esc(o.name)} <span class="muted">· ${c.gapMs === 0 ? 'same age' : (c.aIsOlder ? 'younger' : 'older') + ' by ' + gap}</span></span>${compareBtn(p, o)}</div>
       <div class="s num">${fmt(Math.round(c.gapMs / 1000))} seconds apart · ${fmt(Math.round(c.gapDays))} days</div>
-      ${c.gapMs ? `<div class="s num">${who} on ${dateStr(double)}</div>` : ''}</div>`;
+      ${c.gapMs ? twice : ''}</div>`;
   }).join('');
   const upcoming = state.people.flatMap(x => L.milestones(L.birthDate(x)).filter(m => m.date > now).map(m => ({ ...m, who: x })))
     .sort((a, c) => a.date - c.date).slice(0, 8)
-    .map(m => `<div class="ms"><div class="lbl"><b>${esc(m.who.name)}</b> · ${esc(m.label)}</div><div class="when num">${rel(m.date, now)}</div>
+    .map(m => `<div class="ms"><div class="lbl"><b>${esc(m.who.name)}</b> · ${m.who.died ? 'would have: ' : ''}${esc(m.label)}</div><div class="when num">${rel(m.date, now)}</div>
       <div class="d num">${dateStr(m.date)}</div><div></div></div>`).join('');
   el.innerHTML = `<div class="ph"><h2>Friends</h2></div>
     <div class="scroll">${pairs}<div class="sub">Up next, everyone</div>${upcoming}</div>`;
@@ -338,6 +363,7 @@ function formHTML(p) {
     <label class="field"><span>Name</span><input name="name" maxlength="40" value="${p ? esc(p.name) : ''}" placeholder="${state.people.length ? 'Name' : 'Me'}" required></label>
     <label class="field"><span>Birthday</span><input name="date" type="date" value="${p ? p.date : ''}" required></label>
     <label class="field"><span>Birth time (optional)</span><input name="time" type="time" value="${p && p.time ? p.time : ''}"></label>
+    ${state.people.length ? `<label class="field"><span>Passed (optional)</span><input name="died" type="date" value="${p && p.died ? p.died : ''}"></label>` : ''}
     <div class="actions"><button class="btn primary" data-save>Save</button>
       ${p ? `<button class="btn" data-cancel>Cancel</button>` : (state.people.length ? `<button class="btn" data-cancel>Cancel</button>` : '')}</div>`;
 }
@@ -351,8 +377,10 @@ function bindForm(root, existing) {
     const time = $('[name=time]', root).value || null;
     if (!name) { $('[name=name]', root).focus(); return; }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || new Date(date) > new Date()) { $('[name=date]', root).focus(); return; }
-    if (existing) Object.assign(existing, { name, date, time });
-    else { const p = { id: uid(), name, date, time }; state.people.push(p); state.selected = p.id; }
+    const diedEl = $('[name=died]', root), died = diedEl && diedEl.value || null;
+    if (died && (died < date || new Date(died) > new Date())) { diedEl.focus(); return; }
+    if (existing) Object.assign(existing, { name, date, time, died });
+    else { const p = { id: uid(), name, date, time, died }; state.people.push(p); state.selected = p.id; }
     save(); closeSheet(); render();
   };
   const c = $('[data-cancel]', root); if (c) c.onclick = closeSheet;
@@ -371,8 +399,8 @@ function editSheet(p) { openSheet(`<h3>Edit ${esc(p.name)}</h3>${formHTML(p)}`, 
 function peopleSheet() {
   openSheet(`<h3>People</h3>
     <div class="plist">${state.people.map(p => `<div class="p"><div><b>${esc(p.name)}</b>
-      <div class="muted num" style="font-size:13px">${dateStr(L.birthDate(p))}${p.time ? ' · ' + p.time : ''}</div></div>
-      <button class="btn small" data-edit="${p.id}">Edit</button><button class="btn small danger" data-del="${p.id}">Delete</button></div>`).join('')}</div>
+      <div class="muted num" style="font-size:13px">${dateStr(L.birthDate(p))}${p.time ? ' · ' + p.time : ''}${p.died ? ' – ' + dateStr(L.diedDate(p)) : ''}</div></div>
+      ${compareBtn(p)}<button class="btn small" data-edit="${p.id}">Edit</button><button class="btn small danger" data-del="${p.id}">Delete</button></div>`).join('')}</div>
     <div class="actions"><button class="btn primary" data-add>+ Add</button><button class="btn" data-ics-all>Calendar: everyone</button></div>
     <div class="sub">Backup</div>
     <div class="actions"><button class="btn" data-export>Save backup</button><button class="btn" data-import>Load backup</button></div>
@@ -425,9 +453,91 @@ const HELP = {
     <div class="actions"><button class="btn" data-cancel>Close</button></div>`,
 };
 
+// "Sam was twice Tim's age on …" — skipped if either had passed by then.
+function twiceLine(older, younger, day, tag) {
+  const gone = [older, younger].some(x => x.died && day > L.diedDate(x));
+  if (gone) return '';
+  const verb = day > new Date() ? 'will be' : 'was';
+  return `<${tag}>${esc(older.name)} ${verb} twice ${esc(younger.name)}'s age on ${dateStr(day)}</${tag.split(' ')[0]}>`;
+}
+
+// ---------- compare ----------
+const CMP_ICON = '<svg viewBox="0 0 24 24"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg>';
+function compareBtn(a, b) {
+  if (state.people.length < 2) return '';
+  return `<button class="cmpbtn" data-cmp="${a.id}" ${b ? `data-cmp-b="${b.id}"` : ''} aria-label="Compare ${esc(a.name)}">${CMP_ICON}</button>`;
+}
+
+function openCompare(aId, bId) {
+  const a = state.people.find(p => p.id === aId);
+  const others = state.people.filter(p => p.id !== aId);
+  if (!a || !others.length) return;
+  if (!bId && others.length > 1) {
+    openSheet(`<h3>Compare ${esc(a.name)} with…</h3><div class="pick">
+      ${others.map(o => `<button class="btn" data-cmp="${a.id}" data-cmp-b="${o.id}">${esc(o.name)}</button>`).join('')}</div>
+      <div class="actions"><button class="btn" data-cancel>Cancel</button></div>`);
+    return;
+  }
+  const b = state.people.find(p => p.id === bId) || others[0];
+  openSheet(compareHTML(a, b, others), el => {
+    $('select', el).onchange = e => openCompare(a.id, e.target.value);
+  });
+}
+
+function compareHTML(a, b, others) {
+  const now = new Date();
+  const ba = L.birthDate(a), bb = L.birthDate(b);
+  const ea = L.asOf(a, now), eb = L.asOf(b, now);
+  const A = L.ages(ba, ea), B = L.ages(bb, eb);
+  const Fa = L.facts(ba, ea), Fb = L.facts(bb, eb);
+  const c = L.compare(ba, bb);
+  const older = c.aIsOlder ? a : b, younger = c.aIsOlder ? b : a;
+  const gap = span(new Date(0), new Date(c.gapMs));
+  const diff = (x, y, dp = 0) => Math.abs(x - y) >= 1e9 ? short(Math.abs(x - y)) : fmt(Math.abs(x - y), dp);
+  const row = (k, va, vb, d = '') => `<div class="k">${k}</div><div class="num">${esc(va)}</div><div class="num">${esc(vb)}</div><div class="d num">${d}</div>`;
+  const head = (t, d = 'Diff') => `<div class="h">${t}</div><div class="h">${esc(a.name)}</div><div class="h">${esc(b.name)}</div><div class="h" style="text-align:right">${d}</div>`;
+  const ageRows = [
+    ['Years', A.years, B.years, 2], ['Months', A.months, B.months, 0], ['Weeks', A.weeks, B.weeks, 0],
+    ['Days', A.days, B.days, 0], ['Hours', A.hours, B.hours, 0], ['Minutes', A.minutes, B.minutes, 0], ['Seconds', A.seconds, B.seconds, 0],
+  ].map(([k, x, y, dp]) => row(k, fmt(dp ? x : Math.floor(x), dp), fmt(dp ? y : Math.floor(y), dp), diff(Math.floor(x * 10 ** dp) / 10 ** dp, Math.floor(y * 10 ** dp) / 10 ** dp, dp))).join('');
+  const same = (x, y) => x === y ? 'same' : '';
+  const factRows = [
+    row('Born on a', Fa.bornOn, Fb.bornOn, same(Fa.bornOn, Fb.bornOn)),
+    row('Zodiac', Fa.zodiac, Fb.zodiac, same(Fa.zodiac, Fb.zodiac)),
+    row('Chinese', Fa.chinese, Fb.chinese, same(Fa.chinese, Fb.chinese)),
+    row('Birthstone', Fa.birthstone, Fb.birthstone, same(Fa.birthstone, Fb.birthstone)),
+    row('Generation', Fa.generation, Fb.generation, same(Fa.generation, Fb.generation)),
+    row('Leap days', fmt(Fa.leapDays), fmt(Fb.leapDays), diff(Fa.leapDays, Fb.leapDays)),
+    ...Fa.planets.map((p, i) => row(`On ${p.name}`, fmt(p.age, 2), fmt(Fb.planets[i].age, 2), diff(p.age, Fb.planets[i].age, 2))),
+    row('Heartbeats ≈', short(Fa.heartbeats), short(Fb.heartbeats), short(Math.abs(Fa.heartbeats - Fb.heartbeats))),
+    row('Breaths ≈', short(Fa.breaths), short(Fb.breaths), short(Math.abs(Fa.breaths - Fb.breaths))),
+    row('Full moons', fmt(Math.floor(Fa.fullMoons)), fmt(Math.floor(Fb.fullMoons)), diff(Math.floor(Fa.fullMoons), Math.floor(Fb.fullMoons))),
+    row('Sun miles', short(Fa.sunMiles), short(Fb.sunMiles), short(Math.abs(Fa.sunMiles - Fb.sunMiles))),
+  ].join('');
+  const ma = L.milestones(ba), mb = L.milestones(bb);
+  const msRows = ma.map(m => {
+    const n = mb.find(x => x.key === m.key);
+    const cell = (p, d) => (p.died && d > L.diedDate(p) ? '(' : '') + dateStr(d) + (p.died && d > L.diedDate(p) ? ')' : '');
+    const first = m.date.getTime() === n.date.getTime() ? 'same' : (m.date < n.date ? a.name : b.name);
+    return row(m.label, cell(a, m.date), cell(b, n.date), esc(first));
+  }).join('');
+  return `
+    <div class="cmp-head"><h3>${esc(a.name)} vs</h3>
+      <select aria-label="Compare with">${others.map(o => `<option value="${o.id}" ${o.id === b.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select>
+      <span style="flex:1"></span><button class="btn small" data-cancel>Close</button></div>
+    <div class="cmp-sum">${c.gapMs ? `<b>${esc(older.name)}</b> is older by ${gap} · ${fmt(Math.round(c.gapMs / 1000))} seconds<br>
+      ${twiceLine(older, younger, c.doubleAgeDay, 'span class="muted"')}` : 'Same birthday and time'}</div>
+    <div class="cmp">${head('Age')}${ageRows}</div>
+    <div class="cmp" style="margin-top:12px">${head('Facts')}${factRows}</div>
+    <div class="cmp" style="margin-top:12px">${head('Milestone', 'First')}${msRows}</div>
+    ${a.died || b.died ? '<p class="note">(Dates) = would have been.</p>' : ''}`;
+}
+
 // ---------- events ----------
 document.addEventListener('click', e => {
-  const t = e.target.closest('button, input[data-past]'); if (!t || t.closest('#sheet') && !('cancel' in t.dataset)) return;
+  const t = e.target.closest('button, input[data-past]'); if (!t) return;
+  if (t.dataset.cmp) return openCompare(t.dataset.cmp, t.dataset.cmpB);
+  if (t.closest('#sheet') && !('cancel' in t.dataset)) return;
   if ('cancel' in t.dataset) return closeSheet();
   if (t.dataset.pick) { state.selected = t.dataset.pick; save(); render(); }
   else if (t.dataset.tab) setTab(t.dataset.tab);

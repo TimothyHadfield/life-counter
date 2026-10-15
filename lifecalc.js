@@ -16,6 +16,27 @@
     return new Date(y, m - 1, d, hh, mm, 0, 0);
   }
 
+  // The moment someone passed (noon if no time), or null.
+  function diedDate(person) {
+    if (!person.died) return null;
+    const [y, m, d] = person.died.split('-').map(Number);
+    return new Date(y, m - 1, d, 12, 0, 0, 0);
+  }
+
+  // Ages stop counting at the passed date.
+  function asOf(person, now) {
+    const end = diedDate(person);
+    return end && end < now ? end : now;
+  }
+
+  // Calendar event / list title, e.g. "Robbie turns 1 billion seconds".
+  function eventTitle(person, m) {
+    const after = person.died && m.date > diedDate(person);
+    const planet = / birthday$/.test(m.label);
+    if (planet) return after ? `${person.name}'s ${m.label} (would have been)` : `${person.name}'s ${m.label}`;
+    return after ? `${person.name} would have turned ${m.label}` : `${person.name} turns ${m.label}`;
+  }
+
   function addMonths(date, n) {
     const d = new Date(date.getTime());
     const day = d.getDate();
@@ -269,7 +290,7 @@
           lines.push(`DTSTART;VALUE=DATE:${icsDay(m.date)}`);
           lines.push(`DTEND;VALUE=DATE:${icsDay(addDays(m.date, 1))}`);
         }
-        lines.push(`SUMMARY:${icsEscape(`${person.name}: ${m.label}`)}`);
+        lines.push(`SUMMARY:${icsEscape(eventTitle(person, m))}`);
         lines.push('END:VEVENT');
       }
     }
@@ -279,7 +300,7 @@
 
   return {
     SEC, MIN, HOUR, DAY, WEEK, MILESTONES, PLANETS,
-    birthDate, addMonths, addDays, calendarAge, ages, milestones,
+    birthDate, diedDate, asOf, eventTitle, addMonths, addDays, calendarAge, ages, milestones,
     zodiac, chineseZodiac, generation, nextBirthday, goldenBirthday, facts,
     countLeapDays, compare, buildIcs,
   };
