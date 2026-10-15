@@ -38,6 +38,14 @@
   .chip.on { background: var(--accent); color: #1a1406; font-weight: 600; }
   .chip.add { color: var(--accent); }
   .iconbtn { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--panel); display: grid; place-items: center; transition: transform .1s; }
+  .iconbtn.acct { position: relative; }
+  .iconbtn.acct .dot { position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: var(--good); display: none; }
+  .iconbtn.acct.on .dot { display: block; }
+  .bd { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .bd input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+  .bd .nm { flex: 1; min-width: 0; }
+  .bd .yr { width: 84px; font: inherit; font-size: 16px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+  .status { font-size: 13px; color: var(--muted); margin: 4px 0 0; }
   .iconbtn svg { width: 18px; height: 18px; stroke: var(--text); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
   /* Panels */
@@ -175,6 +183,7 @@
 <div class="sheet" id="sheet"></div>
 
 <script src="lifecalc.js"></script>
+<script src="sync.js"></script>
 <script>
 'use strict';
 const L = window.LifeCalc;
@@ -183,12 +192,45 @@ const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // ---------- data ----------
-function load() {
-  try { const s = JSON.parse(localStorage.getItem(STORE)); if (s && Array.isArray(s.people)) return s; } catch (e) {}
-  return { people: [], selected: null, tab: 'live', showPast: false };
+// Signed out: people live under STORE. Signed in: a local copy of the account under lifecounter.acct.<uid>.
+let storeKey = STORE, acctUid = null;
+function load(key) {
+  try {
+    const s = JSON.parse(localStorage.getItem(key));
+    if (s && Array.isArray(s.people)) return { deleted: {}, calendarId: null, tab: 'live', showPast: false, ...s };
+  } catch (e) {}
+  return { people: [], deleted: {}, calendarId: null, selected: null, tab: 'live', showPast: false };
 }
-let state = load();
-function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
+let state = load(STORE);
+function persist() { try { localStorage.setItem(storeKey, JSON.stringify(state)); } catch (e) {} }
+function save() { persist(); if (acctUid && window.LCCloud) LCCloud.push(); }
+const plain = o => JSON.parse(JSON.stringify(o));
+
+// The cloud module (cloud.js) talks to the app only through this.
+window.LCApp = {
+  enterAccount(uid) {
+    if (acctUid === uid) return;
+    const ui = { selected: state.selected, tab: state.tab, showPast: state.showPast };
+    acctUid = uid; storeKey = 'lifecounter.acct.' + uid;
+    state = { ...load(storeKey), ...ui };
+    render();
+  },
+  leaveAccount() {
+    if (acctUid) { acctUid = null; storeKey = STORE; state = load(STORE); render(); }
+    refreshCloudBits();
+  },
+  guestDoc() { const g = load(STORE); return plain({ people: g.people, deleted: g.deleted || {} }); },
+  getDoc() { return plain({ people: state.people, deleted: state.deleted || {} }); },
+  applyDoc(d) {
+    if (JSON.stringify(d.people) === JSON.stringify(state.people) && JSON.stringify(d.deleted) === JSON.stringify(state.deleted)) return;
+    state.people = d.people; state.deleted = d.deleted || {};
+    persist();
+    keepScroll('v-ms', () => keepScroll('v-friends', render));
+  },
+  calendarId() { return state.calendarId || null; },
+  setCalendarId(id, fromServer) { state.calendarId = id; persist(); if (!fromServer) save(); },
+  cloudChanged() { refreshCloudBits(); },
+};
 const person = () => state.people.find(p => p.id === state.selected) || state.people[0];
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -213,6 +255,7 @@ const ICON = {
   ms: '<svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg>',
   facts: '<svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></svg>',
   friends: '<svg viewBox="0 0 24 24"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M2.5 19c.5-3 2.8-4.5 5.5-4.5s5 1.5 5.5 4.5M13 15c.9-.3 1.9-.5 3-.5 2.7 0 5 1.5 5.5 4.5"/></svg>',
+  user: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="10" r="3.2"/><path d="M6 18.6c1.3-2.2 3.4-3.4 6-3.4s4.7 1.2 6 3.4"/></svg>',
   cal: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M12 13v5M9.5 15.5h5"/></svg>',
 };
 
@@ -228,6 +271,7 @@ function render() {
         <button class="chip add" data-add>+ Add</button>
       </div>
       <button class="iconbtn" data-people aria-label="People and backup">${ICON.people}</button>
+      <button class="iconbtn acct" data-account aria-label="Account">${ICON.user}<i class="dot"></i></button>
     </div>
     <main>
       <section class="view panel" id="v-live"></section>
@@ -368,7 +412,8 @@ function formHTML(p) {
       ${p ? `<button class="btn" data-cancel>Cancel</button>` : (state.people.length ? `<button class="btn" data-cancel>Cancel</button>` : '')}</div>`;
 }
 function welcomeHTML() {
-  return `<div class="welcome"><h1>Life Counter</h1><p class="muted">Start with your birthday.</p>${formHTML(null)}</div>`;
+  return `<div class="welcome"><h1>Life Counter</h1><p class="muted">Start with your birthday.</p>${formHTML(null)}
+    <p class="note">Have an account? <button class="btn small" data-signin>Sign in with Google</button></p></div>`;
 }
 function bindForm(root, existing) {
   $('[data-save]', root).onclick = () => {
@@ -379,18 +424,87 @@ function bindForm(root, existing) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || new Date(date) > new Date()) { $('[name=date]', root).focus(); return; }
     const diedEl = $('[name=died]', root), died = diedEl && diedEl.value || null;
     if (died && (died < date || new Date(died) > new Date())) { diedEl.focus(); return; }
-    if (existing) Object.assign(existing, { name, date, time, died });
-    else { const p = { id: uid(), name, date, time, died }; state.people.push(p); state.selected = p.id; }
+    if (existing) { Object.assign(existing, { name, date, time, died, updated: Date.now() }); delete existing.noYear; }
+    else { const p = { id: uid(), name, date, time, died, updated: Date.now() }; state.people.push(p); state.selected = p.id; }
     save(); closeSheet(); render();
   };
   const c = $('[data-cancel]', root); if (c) c.onclick = closeSheet;
 }
 
 // ---------- sheet ----------
-function openSheet(html, after) {
+let sheetKind = null;
+function openSheet(html, after, kind = null) {
+  sheetKind = kind;
   $('#sheet').innerHTML = html; document.body.classList.add('open'); if (after) after($('#sheet'));
 }
-function closeSheet() { document.body.classList.remove('open'); }
+function closeSheet() { sheetKind = null; document.body.classList.remove('open'); }
+
+// ---------- account + Google Calendar ----------
+const SAVE_WORDS = { loading: 'Loading…', saved: 'Saved to your account', saving: 'Saving…', offline: 'Offline · saves when back online', error: 'Couldn’t save · will retry' };
+
+function refreshCloudBits() {
+  const b = $('.iconbtn.acct');
+  if (b) b.classList.toggle('on', !!(window.LCCloud && LCCloud.user));
+  if (sheetKind === 'account') accountSheet();
+}
+
+function accountSheet() {
+  const C = window.LCCloud;
+  if (!C) {
+    openSheet(`<h3>Account</h3><p class="muted">Accounts can’t load right now. Check your connection.</p>
+      <div class="actions"><button class="btn" data-cancel>Close</button></div>`, null, 'account');
+    return;
+  }
+  if (!C.user) {
+    openSheet(`<h3>Account</h3><p>Save your people on every device.</p>
+      <div class="actions"><button class="btn primary" data-signin>Continue with Google</button><button class="btn" data-cancel>Close</button></div>
+      <p class="note">Without an account, people stay on this device only.</p>`, null, 'account');
+    return;
+  }
+  const linked = !!state.calendarId;
+  openSheet(`<h3>Account</h3>
+    <div>${esc(C.user.email || '')}</div>
+    <p class="status">${SAVE_WORDS[C.status] || ''}</p>
+    <div class="sub" style="display:flex;align-items:center;gap:8px"><span style="flex:1">Google Calendar</span><button class="q" data-help="gcal">?</button></div>
+    <div class="actions">
+      <button class="btn primary" data-calsync>${linked ? 'Sync milestones' : 'Add milestones to Google Calendar'}</button>
+      <button class="btn" data-findbd>Find birthdays</button>
+    </div>
+    <p class="status">${esc(C.calStatus || (linked ? 'Milestones go in your “Life Counter” calendar.' : ''))}</p>
+    <div class="actions" style="margin-top:14px"><button class="btn" data-signout>Sign out</button><button class="btn" data-cancel>Close</button></div>`, null, 'account');
+}
+
+function birthdaySheet(found) {
+  const rows = found.map((f, i) => {
+    const have = L && window.LifeSync.alreadyHave(state.people, f);
+    return `<label class="bd"><input type="checkbox" data-i="${i}" ${have ? 'disabled' : 'checked'}>
+      <div class="nm"><b>${esc(f.name)}</b><div class="muted num" style="font-size:13px">${have ? 'Already added' : f.noYear ? dateStr(new Date(2000, +f.date.slice(5, 7) - 1, +f.date.slice(8))).replace(/, 2000$/, '') + ' · year?' : dateStr(L.birthDate({ date: f.date }))}</div></div>
+      ${f.noYear && !have ? `<input class="yr" type="number" inputmode="numeric" placeholder="Year" min="1900" max="${new Date().getFullYear()}" data-y="${i}">` : ''}</label>`;
+  }).join('');
+  openSheet(`<h3>Birthdays in Google Calendar</h3>
+    ${found.length ? `<div>${rows}</div><p class="note">Ones without a year are skipped unless you add it.</p>
+      <div class="actions"><button class="btn primary" data-addbd>Add checked</button><button class="btn" data-cancel>Cancel</button></div>`
+      : `<p class="muted">None found.</p><div class="actions"><button class="btn" data-cancel>Close</button></div>`}`, el => {
+    const add = $('[data-addbd]', el);
+    if (add) add.onclick = () => {
+      let n = 0;
+      el.querySelectorAll('input[type=checkbox][data-i]').forEach(cb => {
+        if (!cb.checked || cb.disabled) return;
+        const f = found[+cb.dataset.i];
+        let date = f.date;
+        if (f.noYear) {
+          const y = +($(`[data-y="${cb.dataset.i}"]`, el) || {}).value;
+          if (!(y >= 1900 && y <= new Date().getFullYear())) return;
+          date = String(y) + f.date.slice(4);
+        }
+        state.people.push({ id: uid(), name: f.name.slice(0, 40), date, time: null, died: null, googleId: f.googleId, updated: Date.now() });
+        n++;
+      });
+      save(); closeSheet(); render();
+      if (n) setTimeout(() => alert(`Added ${n} ${n === 1 ? 'person' : 'people'}.`), 50);
+    };
+  });
+}
 $('#sheetBg').onclick = closeSheet;
 
 function addSheet() { openSheet(`<h3>Add person</h3>${formHTML(null)}`, el => bindForm(el, null)); }
@@ -410,11 +524,15 @@ function peopleSheet() {
       if (t.dataset.edit) editSheet(state.people.find(p => p.id === t.dataset.edit));
       else if (t.dataset.del) {
         const p = state.people.find(x => x.id === t.dataset.del);
-        if (confirm(`Delete ${p.name}?`)) { state.people = state.people.filter(x => x !== p); save(); render(); state.people.length ? peopleSheet() : closeSheet(); }
+        if (confirm(`Delete ${p.name}?`)) {
+          state.people = state.people.filter(x => x !== p);
+          state.deleted = { ...(state.deleted || {}), [p.id]: Date.now() };
+          save(); render(); state.people.length ? peopleSheet() : closeSheet();
+        }
       }
       else if ('add' in t.dataset) addSheet();
       else if ('icsAll' in t.dataset) downloadIcs(state.people, 'life-counter-everyone');
-      else if ('export' in t.dataset) download(JSON.stringify({ app: 'life-counter', v: 1, people: state.people }, null, 2), 'life-counter-backup.json', 'application/json');
+      else if ('export' in t.dataset) download(JSON.stringify({ app: 'life-counter', v: 2, people: state.people }, null, 2), 'life-counter-backup.json', 'application/json');
       else if ('import' in t.dataset) importBackup();
     };
   });
@@ -435,7 +553,7 @@ function importBackup() {
       const data = JSON.parse(await input.files[0].text());
       const incoming = (data.people || []).filter(p => p && p.name && /^\d{4}-\d{2}-\d{2}$/.test(p.date));
       const have = new Set(state.people.map(p => p.id));
-      for (const p of incoming) if (!have.has(p.id)) state.people.push({ id: p.id || uid(), name: String(p.name).slice(0, 40), date: p.date, time: p.time || null });
+      for (const p of incoming) if (!have.has(p.id)) state.people.push({ id: p.id || uid(), name: String(p.name).slice(0, 40), date: p.date, time: p.time || null, died: p.died || null, updated: Date.now() });
       save(); render(); peopleSheet();
     } catch (e) { alert('That file is not a Life Counter backup.'); }
   };
@@ -443,6 +561,10 @@ function importBackup() {
 }
 
 const HELP = {
+  gcal: `<h3>Google Calendar</h3><p class="muted">Google will say the app isn’t verified: tap <b>Advanced</b> → <b>Go to Life Counter</b>.</p>
+    <p class="muted">Milestones go in their own “Life Counter” calendar, so your events are never touched. Delete that calendar to remove them all.</p>
+    <p class="muted">Sync runs when you tap it, and on its own after edits for an hour after that. Find birthdays reads the birthdays already in your Google Calendar.</p>
+    <div class="actions"><button class="btn" data-account>Back</button></div>`,
   ics: `<h3>Add to calendar</h3><p>Downloads one file with every upcoming milestone.</p>
     <p class="muted">iPhone: tap the file, then "Add All" (Apple Calendar).<br>Google Calendar: on a computer, open
     <a href="https://calendar.google.com/calendar/r/settings/export" target="_blank" rel="noopener" style="color:var(--accent)">Google Calendar → Import</a> and pick the file.
@@ -537,6 +659,16 @@ function compareHTML(a, b, others) {
 document.addEventListener('click', e => {
   const t = e.target.closest('button, input[data-past]'); if (!t) return;
   if (t.dataset.cmp) return openCompare(t.dataset.cmp, t.dataset.cmpB);
+  // Google popups must open straight from the tap, so no awaits before these calls.
+  if ('account' in t.dataset) return accountSheet();
+  if (t.dataset.help) return openSheet(HELP[t.dataset.help]);
+  if ('signin' in t.dataset) { if (window.LCCloud) LCCloud.signIn(); else accountSheet(); return; }
+  if ('signout' in t.dataset) { if (window.LCCloud) LCCloud.signOut(); return closeSheet(); }
+  if ('calsync' in t.dataset) { if (window.LCCloud) LCCloud.syncCalendar(); return; }
+  if ('findbd' in t.dataset) {
+    if (window.LCCloud) LCCloud.findBirthdays().then(found => { if (found) birthdaySheet(found); });
+    return;
+  }
   if (t.closest('#sheet') && !('cancel' in t.dataset)) return;
   if ('cancel' in t.dataset) return closeSheet();
   if (t.dataset.pick) { state.selected = t.dataset.pick; save(); render(); }
@@ -560,5 +692,6 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && st
 
 render();
 </script>
+<script type="module" src="cloud.js"></script>
 </body>
 </html>

@@ -1,0 +1,18 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Life Counter",
+        "supportEmail": "timhadfield7@gmail.com",
+        "authorizedRedirectUris": ["https://timothyhadfield.github.io"]
+      }
+    }
+  },
+  "emulators": {
+    "firestore": { "port": 8087 },
+    "ui": { "enabled": false }
+  }
+}

@@ -3,7 +3,7 @@
 > **Tim asked (2026-10-15):** "make an account system so that people can save their data accross devices. Also make it so that they can connect to their google calendar and it will automatically identify people's birthdays already put in and put them into the app as well as allow the user to put in important dates in their calendar such as "Robbie turns 1 billion seconds" or something like that. Make a compare button by each person's name where you can select a different person and compare differences in all the data. Also allow you to make a "passed" date change to someones info as to say when they died."
 > **Instruction:** build ("make").
 
-**Status:** building · see BUILT sections at the bottom as phases land.
+**Status:** built 2026-10-15 · see BUILT section at the bottom.
 
 ## Decided by Tim
 - 2026-10-15 · Google's "unverified app" warning + 100-user cap is fine for now; no verification yet.
@@ -74,3 +74,9 @@ d. ~~After passed date~~ → show as "Would have …" (2026-10-15)
 - https://developers.google.com/calendar/api/guides/event-types
 - https://developers.google.com/identity/protocols/oauth2/production-readiness/sensitive-scope-verification
 - https://developers.google.com/health/setup (Testing-mode 7-day tokens)
+
+## BUILT 2026-10-15
+- **Phase 1** (passed + compare): commit 2c1259b.
+- **Phase 2/3** (accounts + calendar): `cloud.js`, `sync.js`, account sheet, "Sync milestones", "Find birthdays" sheet. Firebase project `life-counter-th` on Spark; rules deployed and emulator-tested 12/12.
+- Changes from the plan: deletes sync via tombstones (`deleted:{id:ms}`) and writes are transactions merging server + local (~~last write wins~~); only events with private property `lc=1` are touched; stable event ids with 409 → PUT; hand-typed yearly "birthday" events are also read (title must contain "birthday"); full `calendar` scope fallback if `calendar.app.created` can't create the calendar.
+- Still open: real Google account test; consent screen may need "Publish app"; birthday year availability.

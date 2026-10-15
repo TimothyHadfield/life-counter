@@ -8,3 +8,10 @@ _One entry per session, newest at the bottom, capped at 60 KB. Older entries are
 - **Built:** `LifeCounter.html`, `lifecalc.js`, `index.html` redirect, tests, direction/progress/chat/README/research. Repo TimothyHadfield/life-counter (public), Pages on.
 - **Verified how:** `node tests/lifecalc.test.js` 18/18 (1B seconds checked against known 2000-01-01 → 2031-09-09T01:46:40Z). phone-view WebKit 393×659: all four tabs, welcome, add sheet, people sheet: no overflow, no page scroll, no console errors; scripted add-two-people flow saved correctly, 63 .ics events built. Laptop 1440×900 screenshot: four panels fit.
 - **Open:** real-iPhone calendar import and Google import untested; Tim's reaction to the look.
+
+## 2026-10-15 · Accounts, Google Calendar, compare, passed
+- **Asked:** "make an account system so that people can save their data accross devices… connect to their google calendar… identify people's birthdays… put in important dates… "Robbie turns 1 billion seconds"… compare button by each person's name… "passed" date…"
+- **Decided (Tim):** Google-only sign-in; separate Life Counter calendar; unverified warning + 100-user cap fine; after passed, "would have" milestones kept.
+- **Built:** plan `docs/accounts-calendar-plan.md`; phase 1 passed + compare (commit 2c1259b); phase 2/3 `cloud.js`, `sync.js`, account sheet, calendar sync, birthday import, Firebase project `life-counter-th` (auth, Firestore, rules).
+- **Verified how:** node tests 21/21 + 14/14; Firestore rules emulator 12/12; headless WebKit: sign-in popup reaches accounts.google.com; stubbed LCCloud account sheet (signed in/out) and birthday import flow at 393px.
+- **Open:** real Google sign-in/calendar on Tim's account; consent screen may need "Publish app".

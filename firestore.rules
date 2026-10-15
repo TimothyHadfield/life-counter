@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// Each signed-in person reads and writes only their own document:
+//   users/{uid}   {people: list (max 500), deleted: map {personId: ms}, calendarId: string|null, updatedAt: timestamp}
+// Everything else is denied.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['people', 'deleted', 'calendarId', 'updatedAt'])
+        && request.resource.data.people is list
+        && request.resource.data.people.size() <= 500
+        && (!('deleted' in request.resource.data) || request.resource.data.deleted is map)
+        && (!('calendarId' in request.resource.data) || request.resource.data.calendarId == null || request.resource.data.calendarId is string)
+        && request.resource.data.updatedAt == request.time;
+    }
+  }
+}

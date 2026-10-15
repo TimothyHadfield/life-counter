@@ -1,59 +1,73 @@
 # Life Counter — progress (handoff for Claude)
 
 ## START HERE
-_Last updated 2026-10-15. For Claude only; Tim doesn't read this. Catch-up authorizes nothing: only "Authorized next steps" below is approved work._
+_Last updated 2026-10-15 (evening). For Claude only; Tim doesn't read this. Catch-up authorizes nothing: only "Authorized next steps" below is approved work._
 1. Read this file (it's short on purpose).
 2. Read `direction.md` (it overrules everything).
-3. Skim the last 3 entries of `chat.md`. Older history: `docs/archive/`.
+3. Skim the last 3 entries of `chat.md`. Plan for accounts/calendar: `docs/accounts-calendar-plan.md`.
 
 ## Goal right now
-v1 is live. Waiting on Tim to try it on his iPhone and react.
+Accounts + Google Calendar + compare + passed are built and live. Waiting on Tim to sign in on his iPhone and try calendar sync / birthday import.
 
 ## Status
 | Area | State | Notes |
 |---|---|---|
-| Live counters | live | ticks every second; calendar age + big seconds number |
-| Milestones | live | 37 benchmarks + planet birthdays; "Past" switch |
-| Facts | live | 19 facts; ≈ ones explained behind ? |
-| Friends | live | gap, double-age day, next 8 milestones for everyone |
-| Calendar | live | .ics per person or everyone; stable UIDs so re-import updates |
-| People / backup | live | add/edit/delete; JSON backup save/load |
+| Live counters | live | ticks every second; frozen + "would be N today" for passed people |
+| Milestones | live | 37 benchmarks + planet birthdays; "Would have:" after passed date |
+| Facts / Friends | live | facts use `asOf` (death date if passed) |
+| Compare | live | ⇄ button in Live header, Friends rows, people sheet; picker if >2 people |
+| Passed date | live | optional field in edit form |
+| Accounts | live | Google sign-in (popup), Firestore `users/{uid}`, merge newest-wins + tombstones |
+| Google Calendar | live, untested with real Google data | "Life Counter" calendar, sync on tap + auto 4s after edits while token (1h) valid |
+| Birthday import | live, untested with real Google data | reads birthday events from primary calendar, checkbox sheet |
+| .ics / JSON backup | live | unchanged from v1 |
 
 ## Authorized next steps
-- 2026-10-15 · Set up files + repo + build v1 (done). Nothing further authorized yet.
+- 2026-10-15 · Build accounts + calendar + compare + passed (done). Nothing further authorized yet.
 
 ## Standing instructions (Tim's words)
-- Users: "Just me, on my device". No accounts, no server.
-- Calendar: "One file, import once" (not Google login).
-- v1 includes: "Live ticking counters, Benchmarks list, Fun birth facts, Friend comparisons".
-- Birth time: "Optional time, default noon".
+- "Google-only sign-in". Guest (device-only) mode stays.
+- Separate "Life Counter" calendar for milestones.
+- Unverified-app warning and 100-user cap: "fine for now".
+- Passed: later milestones show as "would have" and stay in the calendar.
+- v1 scope: "Live ticking counters, Benchmarks list, Fun birth facts, Friend comparisons". Birth time optional, default noon.
 - Folder stays at `Code Projects\Life Counter`.
 
 ## Traps / rules that bite
-- phone-view `--do fill:SEL=TEXT` splits on `=` → selectors can't contain `=`; use `label:nth-of-type(n) input`.
-- `--local` seeds key `lifecounter.v1` (JSON: people[], selected, tab, showPast).
-- Repo is public: never commit real birthdays or backup files (`.gitignore` covers *.ics and backup json).
-- Pages URL root is `index.html`, which redirects to `LifeCounter.html` (Tim's original file name).
+- **Google popups must open synchronously inside the tap handler** (iOS blocks after an await). `connect()`/`signIn` are called straight from click handlers.
+- Calendar token lives 1 hour in sessionStorage `lifecounter.gtoken`; no refresh token without a server. Scopes `calendar.events.readonly` + `calendar.app.created`; if creating the calendar 403s, flag `lifecounter.fullscope` switches to full `calendar` scope.
+- Only events with private extendedProperty `lc=1` are ever touched. Event ids = 'lc' + FNV hex; insert, 409 → PUT confirmed.
+- Firebase project `life-counter-th` became an Identity Platform project after `firebase deploy --only auth`. Authorized domains: localhost, firebaseapp, web.app, timothyhadfield.github.io.
+- Admin API calls: scratchpad script exchanged the firebase-tools refresh token (clientId/secret from firebase-tools lib/api.js). OAuth client secret must never be committed.
+- Rules test: `tests/rules.test.mjs` needs `npm i @firebase/rules-unit-testing firebase` somewhere it can resolve, then `firebase emulators:exec --only firestore "node tests/rules.test.mjs firestore.rules"` (emulator port 8087). Last run 2026-10-15: 12/12.
+- Storage keys: guest `lifecounter.v1`; account cache `lifecounter.acct.<uid>`; one-time guest merge flag `lifecounter.merged.<uid>`.
+- phone-view `--do fill:SEL=TEXT` splits on `=` → selectors can't contain `=`. phone-view runs `--eval` after `--do`.
+- Repo is public: never commit real birthdays or backup files.
+- Test account: none yet (needs a real Google account `claude-test`; stubbed `LCCloud` used for UI checks).
 
 ## Decisions
-- 2026-10-15 · Plain HTML/JS, no build; math in `lifecalc.js` (UMD) so Node tests load it.
-- 2026-10-15 · Phone: 4 bottom tabs (Live, Milestones, Facts, Friends). Laptop ≥900px: all four panels at once, no tabs.
-- 2026-10-15 · Chinese zodiac uses `Intl` Chinese calendar (correct for Jan/Feb births), falls back to Gregorian year.
-- 2026-10-15 · Timed .ics events only when birth time is known; otherwise all-day.
-- 2026-10-15 · Dark theme, amber accent (#f5b041), no card borders.
+- 2026-10-15 · Plain HTML/JS, no build; math in `lifecalc.js`, sync logic in `sync.js` (UMD, Node-tested); Firebase in `cloud.js` (ES module, gstatic SDK 12.16.0).
+- 2026-10-15 · One Firestore doc per user {people, deleted, calendarId, updatedAt}; writes are transactions merging server + local.
+- 2026-10-15 · Account icon top-right opens Account sheet (sign in / status / calendar / sign out).
+- 2026-10-15 · Calendar sync runs on tap (no server). Birthdays without a year ask for one.
+- 2026-10-15 · Phone: 4 bottom tabs. Laptop ≥900px: all panels. Dark theme, amber accent, no card borders.
 
 ## NOT verified
-- iOS Safari tapping the calendar button: should offer "Add All" to Apple Calendar · needs Tim's iPhone
-- Google Calendar import of the .ics (UID dedupe on re-import) · needs a real import
-- JSON backup "Load" on iPhone file picker · needs Tim's iPhone
+- Real Google sign-in end to end (headless reached accounts.google.com only) · needs Tim
+- OAuth consent screen may be in "Testing" → only test users can sign in. Fix: Publish app at https://console.cloud.google.com/auth/audience?project=life-counter-th
+- Whether `calendar.app.created` scope is accepted, and real calendar writes
+- Whether Google birthday events carry the birth year
+- iPhone popup flow, iOS .ics import, JSON backup load on iPhone
 
 ## Rejected / parked
-- ~~Google login + Calendar API auto-add~~ · 2026-10-15 · Tim chose import-once file
-- ~~Firebase sync / friend accounts~~ · 2026-10-15 · Tim chose device-only
+- ~~Device-only, no accounts~~ · 2026-10-15 · reversed by Tim's second ask
+- ~~Calendar sync while app closed~~ · needs Blaze billing (not $0)
 
 ## Map
-- `LifeCounter.html` · the whole app (UI + styles)
-- `lifecalc.js` · date math, milestones, facts, compare, .ics builder
-- `tests/lifecalc.test.js` · Tests: `node tests/lifecalc.test.js` · last run 2026-10-15: 18 passed / 0 failed
-- `docs/research.md` · existing-tools check
-- Live: https://timothyhadfield.github.io/life-counter/ · hosting: GitHub Pages (repo TimothyHadfield/life-counter)
+- `LifeCounter.html` · the whole UI
+- `lifecalc.js` · date math, milestones, facts, compare, .ics, passed (`diedDate`, `asOf`, `eventTitle`)
+- `sync.js` · merge, calendar event plan, birthday parsing
+- `cloud.js` · Firebase auth/Firestore + Calendar API calls (`window.LCCloud`)
+- `firestore.rules`, `firebase.json`, `.firebaserc` · deploy: `firebase deploy --only firestore:rules`
+- Tests: `node tests/lifecalc.test.js` (21/21), `node tests/sync.test.js` (14/14), rules 12/12 · 2026-10-15
+- Live: https://timothyhadfield.github.io/life-counter/ · repo TimothyHadfield/life-counter
