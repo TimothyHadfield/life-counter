@@ -97,13 +97,15 @@ window.addEventListener('online', () => { if (status === 'offline' || status ===
 const SCOPE_READ = 'https://www.googleapis.com/auth/calendar.events.readonly';
 const SCOPE_APP = 'https://www.googleapis.com/auth/calendar.app.created';
 const SCOPE_FULL = 'https://www.googleapis.com/auth/calendar';
+const SCOPE_LIST = 'https://www.googleapis.com/auth/calendar.calendarlist.readonly';
 const TOKEN_KEY = 'lifecounter.gtoken';
+const TOKEN_V = 2; // bump when scopes change so old tokens ask again
 let calStatus = '';
 
 function getToken() {
   try {
     const t = JSON.parse(sessionStorage.getItem(TOKEN_KEY));
-    if (t && t.uid === (user && user.uid) && t.exp > Date.now()) return t;
+    if (t && t.uid === (user && user.uid) && t.exp > Date.now() && t.v === TOKEN_V) return t;
   } catch (e) {}
   return null;
 }
@@ -115,12 +117,13 @@ function connect() {
   if (!user) return Promise.reject(new Error('Sign in first.'));
   const p = new GoogleAuthProvider();
   p.addScope(SCOPE_READ);
+  p.addScope(SCOPE_LIST);
   p.addScope(wantFull() ? SCOPE_FULL : SCOPE_APP);
   p.setCustomParameters({ login_hint: user.email || '' });
   return reauthenticateWithPopup(user, p).then(res => {
     const cred = GoogleAuthProvider.credentialFromResult(res);
     if (!cred || !cred.accessToken) throw new Error('Google did not give calendar access.');
-    const t = { uid: user.uid, token: cred.accessToken, exp: Date.now() + 55 * 60000, full: wantFull() };
+    const t = { uid: user.uid, token: cred.accessToken, exp: Date.now() + 55 * 60000, full: wantFull(), v: TOKEN_V };
     try { sessionStorage.setItem(TOKEN_KEY, JSON.stringify(t)); } catch (e) {}
     App().cloudChanged();
     return t;
@@ -243,9 +246,17 @@ function findBirthdays() {
   return withToken().then(async () => {
     setCal('Looking for birthdays…');
     const a = await listAll('/calendars/primary/events?eventTypes=birthday');
-    let b = [];
-    try { b = await listAll('/calendars/primary/events?eventTypes=default&q=birthday'); } catch (e) {}
-    const found = S.parseBirthdays([...a, ...b], new Date());
+    const quiet = p => listAll(p).catch(e => { console.warn(e); return []; });
+    const b = await quiet('/calendars/primary/events?eventTypes=default&q=birthday');
+    // Other calendars too (shared family birthday calendars etc.).
+    const cals = S.birthdayCalendars(await quiet('/users/me/calendarList?minAccessRole=reader'), App().calendarId());
+    const more = await Promise.all(cals.map(c => {
+      const base = `/calendars/${encodeURIComponent(c.id)}/events`;
+      return c.mode === 'all'
+        ? quiet(base).then(xs => xs.map(x => ({ ...x, _bdayCal: true })))
+        : quiet(base + '?q=birthday');
+    }));
+    const found = S.parseBirthdays([...a, ...b, ...more.flat()], new Date());
     setCal(found.length ? `Found ${found.length} birthdays` : 'No birthdays found in Google Calendar');
     return found;
   }).catch(e => { setCal(e.message === 'needs-connect' ? 'Tap again to reconnect Google' : e.message); return null; });

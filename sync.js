@@ -93,32 +93,49 @@
   }
 
   // ---------- birthdays found in Google Calendar ----------
-  const NAME_RE = /^(.*?)(?:'s|’s|s')?\s+birthday\b.*$/i;
+  const BDAY = /\b(?:birthday|bday|b-day)\b|🎂/i;
+  const NAME_RE = /^(.*?)(?:'s|’s|s')?\s+(?:birthday|bday|b-day)\b.*$/i;
   function nameFrom(summary) {
-    const s = (summary || '').trim();
+    // Drop emoji and decoration ("🎂 Wes's Birthday!!") but keep letters, digits, apostrophes, dots, hyphens.
+    const s = (summary || '').replace(/[^\p{L}\p{N}'’.\- ]+/gu, ' ').replace(/\s+/g, ' ').trim();
     const m = s.match(NAME_RE);
     if (m && m[1].trim()) return m[1].trim();
-    const n = s.replace(/\bbirthday\b/i, '').replace(/[-–:!]+/g, ' ').trim();
+    const n = s.replace(/\b(?:birthday|bday|b-day)\b/i, '').replace(/^[\s\-–.]+|[\s\-–.]+$/g, '').trim();
     return n || null;
   }
 
-  // items: Calendar API events (series masters). Returns [{googleId, name, date, noYear}].
+  // Birth year written in the description, e.g. "Born November 8, 2001".
+  function yearFromText(text, now) {
+    const m = String(text || '').match(/\bborn\b[^\n]*?\b(1[89]\d\d|20\d\d)\b/i);
+    const y = m && Number(m[1]);
+    return y && y <= now.getFullYear() ? y : null;
+  }
+
+  // items: Calendar API events (series masters). An item with _bdayCal came from a calendar
+  // named for birthdays, so every event in it counts. Returns [{googleId, name, date, noYear}].
   function parseBirthdays(items, now) {
     const seen = new Set(), out = [];
     for (const e of items || []) {
       if (!e || e.status === 'cancelled' || !e.start) continue;
       const isBirthdayType = e.eventType === 'birthday';
-      if (!isBirthdayType && !/birthday/i.test(e.summary || '')) continue;
       if (isBirthdayType && e.birthdayProperties && e.birthdayProperties.type && e.birthdayProperties.type !== 'birthday') continue;
-      if (!isBirthdayType && !(e.recurrence || []).some(r => /FREQ=YEARLY/.test(r))) continue;
-      const raw = e.start.date || (e.start.dateTime || '').slice(0, 10);
+      if (!isBirthdayType && !e._bdayCal) {
+        if (!BDAY.test(e.summary || '')) continue;
+        if (!(e.recurrence || []).some(r => /FREQ=YEARLY/.test(r))) continue;
+      }
+      let raw = e.start.date || (e.start.dateTime || '').slice(0, 10);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) continue;
       const name = nameFrom(e.summary);
       if (!name) continue;
-      const year = Number(raw.slice(0, 4));
-      const createdYear = e.created ? new Date(e.created).getFullYear() : null;
-      // A series that starts the year it was made (or later), or before 1900, has no real birth year.
-      const noYear = year < 1900 || year > now.getFullYear() || (createdYear !== null && year >= createdYear);
+      let year = Number(raw.slice(0, 4));
+      const written = yearFromText(e.description, now);
+      let noYear;
+      if (written) { year = written; raw = written + raw.slice(4); noYear = false; }
+      else {
+        const createdYear = e.created ? new Date(e.created).getFullYear() : null;
+        // A series that starts the year it was made (or later), or before 1900, has no real birth year.
+        noYear = year < 1900 || year > now.getFullYear() || (createdYear !== null && year >= createdYear);
+      }
       const key = name.toLowerCase() + raw.slice(4);
       if (seen.has(key)) continue;
       seen.add(key);
@@ -133,5 +150,13 @@
       || (p.name.toLowerCase() === found.name.toLowerCase() && p.date.slice(5) === found.date.slice(5)));
   }
 
-  return { mergeDocs, sameDoc, eventId, desiredEvents, planCalendar, nameFrom, parseBirthdays, alreadyHave };
+  // Which of the user's calendars to search, and how. Skips holidays/sports (#…v.calendar.google.com)
+  // and the app's own calendar. 'all' = a calendar named for birthdays; 'search' = look for "birthday".
+  function birthdayCalendars(list, ownId) {
+    return (list || []).filter(c => c && c.id && c.id !== ownId && c.id !== 'primary' && !c.primary
+      && !/#.*@group\.v\.calendar\.google\.com$/.test(c.id))
+      .map(c => ({ id: c.id, mode: /birthdays?\b|bdays?\b|🎂/i.test(c.summaryOverride || c.summary || '') ? 'all' : 'search' }));
+  }
+
+  return { mergeDocs, sameDoc, eventId, desiredEvents, planCalendar, nameFrom, parseBirthdays, alreadyHave, birthdayCalendars };
 });

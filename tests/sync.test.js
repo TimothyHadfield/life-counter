@@ -112,6 +112,40 @@ test('birthdays: with year, without year, non-birthday skipped, duplicates merge
   ]);
 });
 
+test('birthdays: emoji titles, "bday", and birth year from the description', () => {
+  assert.strictEqual(S.nameFrom("🎂 Wesley Hadfield's Birthday"), 'Wesley Hadfield');
+  assert.strictEqual(S.nameFrom('Mom bday 🎉'), 'Mom');
+  const now = new Date(2026, 9, 15);
+  const items = [
+    // Shaped like a shared family-birthdays calendar: series made in 2026, real year only in the description.
+    { id: 'f1', eventType: 'default', summary: "🎂 Wesley Hadfield's Birthday", description: 'Born November 8, 2001', start: { date: '2026-11-08' }, created: '2026-02-18T21:43:41Z', recurrence: ['RRULE:FREQ=YEARLY'], _bdayCal: true },
+    // In a birthday calendar, a plain name counts even without the word "birthday".
+    { id: 'f2', eventType: 'default', summary: 'Grandma Ruth', start: { date: '2026-03-04' }, created: '2026-02-18T21:43:41Z', recurrence: ['RRULE:FREQ=YEARLY'], _bdayCal: true },
+    // Outside a birthday calendar a plain name is not a birthday.
+    { id: 'f3', eventType: 'default', summary: 'Dentist', start: { date: '2026-03-04' }, recurrence: ['RRULE:FREQ=YEARLY'] },
+  ];
+  const b = S.parseBirthdays(items, now);
+  assert.deepStrictEqual(b.map(x => [x.name, x.date, x.noYear]), [
+    ['Grandma Ruth', '2026-03-04', true], ['Wesley Hadfield', '2001-11-08', false],
+  ]);
+});
+
+test('birthday calendars: search shared ones, read all of birthday-named ones, skip holidays and our own', () => {
+  const list = [
+    { id: 'me@gmail.com', primary: true, summary: 'me@gmail.com' },
+    { id: 'fam@group.calendar.google.com', summary: 'Hadfield Family Birthdays' },
+    { id: 'shuler@group.calendar.google.com', summary: 'Shuler Family Calendar', description: 'parties, birthdays, cabin trips' },
+    { id: 'family123@group.calendar.google.com', summary: 'Family' },
+    { id: 'en.usa#holiday@group.v.calendar.google.com', summary: 'Holidays in United States' },
+    { id: 'lc@group.calendar.google.com', summary: 'Life Counter' },
+  ];
+  assert.deepStrictEqual(S.birthdayCalendars(list, 'lc@group.calendar.google.com'), [
+    { id: 'fam@group.calendar.google.com', mode: 'all' },
+    { id: 'shuler@group.calendar.google.com', mode: 'search' },
+    { id: 'family123@group.calendar.google.com', mode: 'search' },
+  ]);
+});
+
 test('already have: by google id or same name + month/day', () => {
   const people = [{ id: 'a', name: 'Robbie', date: '1990-06-02' }, { id: 'b', name: 'X', date: '1980-01-01', googleId: 'g9' }];
   assert.ok(S.alreadyHave(people, { googleId: 'g1', name: 'robbie', date: '1990-06-02' }));
