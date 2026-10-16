@@ -15,3 +15,9 @@ _One entry per session, newest at the bottom, capped at 60 KB. Older entries are
 - **Built:** plan `docs/accounts-calendar-plan.md`; phase 1 passed + compare (commit 2c1259b); phase 2/3 `cloud.js`, `sync.js`, account sheet, calendar sync, birthday import, Firebase project `life-counter-th` (auth, Firestore, rules).
 - **Verified how:** node tests 21/21 + 14/14; Firestore rules emulator 12/12; headless WebKit: sign-in popup reaches accounts.google.com; stubbed LCCloud account sheet (signed in/out) and birthday import flow at 393px.
 - **Open:** real Google sign-in/calendar on Tim's account; consent screen may need "Publish app".
+
+## 2026-10-15 · Field fixes: people row scroll, family birthdays
+- **Asked:** "I'm having some problems scrolling on the top pannel with the users." · "many birthdays in but apparently not any of my family members even though their birthdays are in my calendar aswell." · "it says timhadfield7, not rob"
+- **Built:** 5af28bc render() keeps `.chips` scrollLeft + keeps picked chip in view, touch-action pan-x. bad16fc Find birthdays searches every readable calendar (calendarList scope, token v2 → one reconnect), birthday-named calendars read in full, 🎂/bday titles, year from "Born …" description.
+- **Verified how:** Playwright WebKit iPhone 15, 10 people: live site snapped scrollLeft 400→0 on tap, fix keeps 400 (screenshot checked). sync tests 16/16; new tests failed on old sync.js. Real family-birthday shape learned from the robert7hadfield connector account (mistake: not Tim's account; Tim is timhadfield7).
+- **Open:** Tim to retry Find birthdays; swipe feel on real iPhone; Sync milestones on real calendar.

@@ -1,13 +1,13 @@
 # Life Counter — progress (handoff for Claude)
 
 ## START HERE
-_Last updated 2026-10-15 (evening). For Claude only; Tim doesn't read this. Catch-up authorizes nothing: only "Authorized next steps" below is approved work._
+_Last updated 2026-10-15 (late, after commit de44aa9). For Claude only; Tim doesn't read this. Catch-up authorizes nothing: only "Authorized next steps" below is approved work._
 1. Read this file (it's short on purpose).
 2. Read `direction.md` (it overrules everything).
 3. Skim the last 3 entries of `chat.md`. Plan for accounts/calendar: `docs/accounts-calendar-plan.md`.
 
 ## Goal right now
-Accounts + Google Calendar + compare + passed are built and live. Waiting on Tim to sign in on his iPhone and try calendar sync / birthday import.
+Accounts + Google Calendar + compare + passed are built and live. Tim has signed in (as timhadfield7) and run Find birthdays: many found, but **family members were missing**. Fix shipped (bad16fc: search shared calendars, 🎂 titles, "Born …" year in description). Waiting on Tim to retry. If still missing, ask him for one name + which calendar + exact title.
 
 ## Status
 | Area | State | Notes |
@@ -19,7 +19,7 @@ Accounts + Google Calendar + compare + passed are built and live. Waiting on Tim
 | Passed date | live | optional field in edit form |
 | Accounts | live | Google sign-in (popup), Firestore `users/{uid}`, merge newest-wins + tombstones |
 | Google Calendar | live, untested with real Google data | "Life Counter" calendar, sync on tap + auto 4s after edits while token (1h) valid |
-| Birthday import | live, untested with real Google data | reads birthday events from primary calendar, checkbox sheet |
+| Birthday import | live; works on Tim's account except family (fix pending his retry) | primary birthday events + every readable calendar (`birthdayCalendars`: birthday-named → all events, others → q=birthday), checkbox sheet |
 | .ics / JSON backup | live | unchanged from v1 |
 
 ## Authorized next steps
@@ -43,6 +43,9 @@ Accounts + Google Calendar + compare + passed are built and live. Waiting on Tim
 - Storage keys: guest `lifecounter.v1`; account cache `lifecounter.acct.<uid>`; one-time guest merge flag `lifecounter.merged.<uid>`.
 - phone-view `--do fill:SEL=TEXT` splits on `=` → selectors can't contain `=`. phone-view runs `--eval` after `--do`.
 - `render()` rebuilds the whole top bar: it saves and restores `.chips` scrollLeft (fixed 2026-10-15 after Tim: "problems scrolling on the top pannel with the users"). Keep that if render changes.
+- **The claude.ai Google Calendar connector in this environment is robert7hadfield@gmail.com (not Tim).** Tim's app account is timhadfield7@gmail.com. Don't read that connector's calendar for Life Counter debugging; ask Tim instead. (Tim corrected this 2026-10-15: "it says timhadfield7, not rob".)
+- Birthday calendar mode matches the calendar **name** only; a description mentioning birthdays (e.g. a family events calendar) must stay "search" mode or parties/trips become people.
+- Commit messages with quotes break PowerShell `-m @'…'@` arg passing → use `git commit -F <scratchpad file>`.
 - Repo is public: never commit real birthdays or backup files.
 - Test account: none yet (needs a real Google account `claude-test`; stubbed `LCCloud` used for UI checks).
 
@@ -54,9 +57,8 @@ Accounts + Google Calendar + compare + passed are built and live. Waiting on Tim
 - 2026-10-15 · Phone: 4 bottom tabs. Laptop ≥900px: all panels. Dark theme, amber accent, no card borders.
 
 ## NOT verified
-- Real Google sign-in end to end (headless reached accounts.google.com only) · needs Tim
-- OAuth consent screen may be in "Testing" → only test users can sign in. Fix: Publish app at https://console.cloud.google.com/auth/audience?project=life-counter-th
-- Whether `calendar.app.created` scope is accepted, and real calendar writes
+- Real sign-in works for Tim (measured by Tim using it 2026-10-15); other users unknown (consent screen may be in "Testing": Publish app at https://console.cloud.google.com/auth/audience?project=life-counter-th)
+- Whether `calendar.app.created` scope is accepted, and real milestone calendar writes (Tim hasn't reported on Sync milestones)
 - Whether Google birthday events carry the birth year (shared family calendar puts it in the description: "Born November 8, 2001", now parsed)
 - Find birthdays across shared calendars (2026-10-15 fix, needs `calendar.calendarlist.readonly`; token `v:2` forces one reconnect) · needs Tim's real run
 - iPhone popup flow, iOS .ics import, JSON backup load on iPhone
@@ -71,5 +73,6 @@ Accounts + Google Calendar + compare + passed are built and live. Waiting on Tim
 - `sync.js` · merge, calendar event plan, birthday parsing
 - `cloud.js` · Firebase auth/Firestore + Calendar API calls (`window.LCCloud`)
 - `firestore.rules`, `firebase.json`, `.firebaserc` · deploy: `firebase deploy --only firestore:rules`
-- Tests: `node tests/lifecalc.test.js` (21/21), `node tests/sync.test.js` (14/14), rules 12/12 · 2026-10-15
+- Tests: `node tests/lifecalc.test.js` (21/21), `node tests/sync.test.js` (16/16), rules `tests/rules.test.mjs` 12/12 · 2026-10-15
+- Project path: `C:\Users\timha\OneDrive\Desktop\my-website\Code Projects\Life Counter`; push to main redeploys Pages.
 - Live: https://timothyhadfield.github.io/life-counter/ · repo TimothyHadfield/life-counter
