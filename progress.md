@@ -42,6 +42,7 @@ Accounts + Google Calendar + compare + passed are built and live. Waiting on Tim
 - Rules test: `tests/rules.test.mjs` needs `npm i @firebase/rules-unit-testing firebase` somewhere it can resolve, then `firebase emulators:exec --only firestore "node tests/rules.test.mjs firestore.rules"` (emulator port 8087). Last run 2026-10-15: 12/12.
 - Storage keys: guest `lifecounter.v1`; account cache `lifecounter.acct.<uid>`; one-time guest merge flag `lifecounter.merged.<uid>`.
 - phone-view `--do fill:SEL=TEXT` splits on `=` → selectors can't contain `=`. phone-view runs `--eval` after `--do`.
+- `render()` rebuilds the whole top bar: it saves and restores `.chips` scrollLeft (fixed 2026-10-15 after Tim: "problems scrolling on the top pannel with the users"). Keep that if render changes.
 - Repo is public: never commit real birthdays or backup files.
 - Test account: none yet (needs a real Google account `claude-test`; stubbed `LCCloud` used for UI checks).
 
