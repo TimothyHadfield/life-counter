@@ -57,7 +57,8 @@ Accounts + Google Calendar + compare + passed are built and live. Waiting on Tim
 - Real Google sign-in end to end (headless reached accounts.google.com only) · needs Tim
 - OAuth consent screen may be in "Testing" → only test users can sign in. Fix: Publish app at https://console.cloud.google.com/auth/audience?project=life-counter-th
 - Whether `calendar.app.created` scope is accepted, and real calendar writes
-- Whether Google birthday events carry the birth year
+- Whether Google birthday events carry the birth year (shared family calendar puts it in the description: "Born November 8, 2001", now parsed)
+- Find birthdays across shared calendars (2026-10-15 fix, needs `calendar.calendarlist.readonly`; token `v:2` forces one reconnect) · needs Tim's real run
 - iPhone popup flow, iOS .ics import, JSON backup load on iPhone
 
 ## Rejected / parked
