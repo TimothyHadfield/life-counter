@@ -28,7 +28,8 @@
 
   /* Top bar: people chips + people/settings button */
   .top { display: flex; align-items: center; gap: 8px; padding: 10px 12px 8px; }
-  .chips { flex: 1; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+  .chips { flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+    -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; touch-action: pan-x; }
   .chips::-webkit-scrollbar { display: none; }
   .chip {
     flex: none; padding: 6px 12px; border-radius: 999px; background: var(--panel);
@@ -264,6 +265,7 @@ function render() {
   if (!state.people.length) { app.innerHTML = welcomeHTML(); bindForm($('#app'), null); return; }
   const p = person();
   state.selected = p.id;
+  const oldChips = $('.chips'), chipsX = oldChips ? oldChips.scrollLeft : 0;
   app.innerHTML = `
     <div class="top">
       <div class="chips">
@@ -286,6 +288,11 @@ function render() {
       <button data-tab="friends">${ICON.friends}Friends</button>
     </nav>`;
   renderLive(); renderMilestones(); renderFacts(); renderFriends(); setTab(state.tab);
+  // Keep the people row where it was, and keep the picked person in view.
+  const chips = $('.chips'), on = $('.chip.on'), left = on.offsetLeft - chips.offsetLeft;
+  chips.scrollLeft = chipsX;
+  if (left < chips.scrollLeft) chips.scrollLeft = left - 12;
+  else if (left + on.offsetWidth > chips.scrollLeft + chips.clientWidth) chips.scrollLeft = left + on.offsetWidth - chips.clientWidth + 12;
 }
 
 function setTab(t) {
