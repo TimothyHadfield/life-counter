@@ -20,7 +20,7 @@ Accounts + Google Calendar + compare + passed are built and live. Tim has signed
 | Accounts | live | Google sign-in (popup), Firestore `users/{uid}`, merge newest-wins + tombstones |
 | Google Calendar | live, untested with real Google data | "Life Counter" calendar, sync on tap + auto 4s after edits while token (1h) valid |
 | Birthday import | live; works on Tim's account except family (fix pending his retry) | primary birthday events + every readable calendar (`birthdayCalendars`: birthday-named → all events, others → q=birthday), checkbox sheet |
-| .ics / JSON backup | live | unchanged from v1 |
+| .ics / JSON backup | live | 2026-10-16 sweep: backup import now validated (`LifeSync.cleanImport`) |
 
 ## Authorized next steps
 - 2026-10-15 · Build accounts + calendar + compare + passed (done). Nothing further authorized yet.
@@ -54,6 +54,7 @@ Accounts + Google Calendar + compare + passed are built and live. Tim has signed
 - 2026-10-15 · One Firestore doc per user {people, deleted, calendarId, updatedAt}; writes are transactions merging server + local.
 - 2026-10-15 · Account icon top-right opens Account sheet (sign in / status / calendar / sign out).
 - 2026-10-15 · Calendar sync runs on tap (no server). Birthdays without a year ask for one.
+- 2026-10-16 · Sweep (no visual changes): crafted backup file could inject HTML via id/time/died (Firebase audit Low 1) → `cleanImport` + `esc()`; tab/pick/Past taps use `persist()` (were pushing to Firestore + starting calendar auto-sync, 8 pushes per 6 taps measured); meta description + aria-label "Help". Added CLAUDE.md. Tests 21/21 + 17/17.
 - 2026-10-15 · Phone: 4 bottom tabs. Laptop ≥900px: all panels. Dark theme, amber accent, no card borders.
 
 ## NOT verified
@@ -73,6 +74,6 @@ Accounts + Google Calendar + compare + passed are built and live. Tim has signed
 - `sync.js` · merge, calendar event plan, birthday parsing
 - `cloud.js` · Firebase auth/Firestore + Calendar API calls (`window.LCCloud`)
 - `firestore.rules`, `firebase.json`, `.firebaserc` · deploy: `firebase deploy --only firestore:rules`
-- Tests: `node tests/lifecalc.test.js` (21/21), `node tests/sync.test.js` (16/16), rules `tests/rules.test.mjs` 12/12 · 2026-10-15
+- Tests: `node tests/lifecalc.test.js` (21/21), `node tests/sync.test.js` (17/17, 2026-10-16), rules `tests/rules.test.mjs` 12/12 · 2026-10-15
 - Project path: `C:\Users\timha\OneDrive\Desktop\my-website\Code Projects\Life Counter`; push to main redeploys Pages.
 - Live: https://timothyhadfield.github.io/life-counter/ · repo TimothyHadfield/life-counter

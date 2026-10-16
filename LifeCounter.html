@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Life Counter</title>
+<meta name="description" content="How old you and your friends are in every unit, live to the second, with dated milestones like 1 billion seconds.">
 <style>
   :root {
     --bg: #0f1115; --panel: #171a21; --line: #262a33; --text: #e8eaf0; --muted: #8a90a0;
@@ -337,7 +338,7 @@ function renderMilestones(jump) {
     <div class="ph"><h2>Milestones</h2>
       <label class="sw"><input type="checkbox" data-past ${state.showPast ? 'checked' : ''}><i></i>Past</label>
       <button class="iconbtn" data-ics aria-label="Add to calendar">${ICON.cal}</button>
-      <button class="q" data-help="ics">?</button>
+      <button class="q" aria-label="Help" data-help="ics">?</button>
     </div>
     <div class="scroll">
       ${list.map(m => `<div class="ms ${m.date <= now ? (died && m.date > died ? 'past would' : 'past') : ''} ${m.key === nextKey ? 'up' : ''}">
@@ -376,7 +377,7 @@ function renderFacts() {
     ['Full moons', fmt(Math.floor(f.fullMoons))],
     ['Miles around Sun', short(f.sunMiles)],
   ];
-  el.innerHTML = `<div class="ph"><h2>Facts</h2><button class="q" data-help="facts">?</button></div>
+  el.innerHTML = `<div class="ph"><h2>Facts</h2><button class="q" aria-label="Help" data-help="facts">?</button></div>
     <div class="scroll"><div class="facts">
       ${items.map(([k, v]) => `<div class="fact"><div class="k">${k}</div><div class="v num">${esc(v)}</div></div>`).join('')}
     </div></div>`;
@@ -472,7 +473,7 @@ function accountSheet() {
   openSheet(`<h3>Account</h3>
     <div>${esc(C.user.email || '')}</div>
     <p class="status">${SAVE_WORDS[C.status] || ''}</p>
-    <div class="sub" style="display:flex;align-items:center;gap:8px"><span style="flex:1">Google Calendar</span><button class="q" data-help="gcal">?</button></div>
+    <div class="sub" style="display:flex;align-items:center;gap:8px"><span style="flex:1">Google Calendar</span><button class="q" aria-label="Help" data-help="gcal">?</button></div>
     <div class="actions">
       <button class="btn primary" data-calsync>${linked ? 'Sync milestones' : 'Add milestones to Google Calendar'}</button>
       <button class="btn" data-findbd>Find birthdays</button>
