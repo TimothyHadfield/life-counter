@@ -158,5 +158,28 @@
       .map(c => ({ id: c.id, mode: /birthdays?\b|bdays?\b|🎂/i.test(c.summaryOverride || c.summary || '') ? 'all' : 'search' }));
   }
 
-  return { mergeDocs, sameDoc, eventId, desiredEvents, planCalendar, nameFrom, parseBirthdays, alreadyHave, birthdayCalendars };
+  // ---------- JSON backup import ----------
+  // A backup file can come from anyone, so only well-formed fields get in (ids, times and dates
+  // end up inside HTML attributes). Same rules as the add/edit form. Returns the people to add.
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/, TIME_RE = /^(?:[01]\d|2[0-3]):[0-5]\d$/, ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
+  function realDate(s) {
+    if (typeof s !== 'string' || !DATE_RE.test(s)) return false;
+    const [y, m, d] = s.split('-').map(Number), t = new Date(y, m - 1, d);
+    return t.getFullYear() === y && t.getMonth() === m - 1 && t.getDate() === d;
+  }
+  function cleanImport(data, haveIds, now, makeId) {
+    const have = new Set(haveIds), out = [];
+    for (const p of (data && Array.isArray(data.people) ? data.people : [])) {
+      if (!p || !p.name || !realDate(p.date) || new Date(p.date) > now) continue;
+      const id = typeof p.id === 'string' && ID_RE.test(p.id) ? p.id : makeId();
+      if (have.has(id)) continue;
+      have.add(id);
+      const time = typeof p.time === 'string' && TIME_RE.test(p.time) ? p.time : null;
+      const died = realDate(p.died) && p.died >= p.date && new Date(p.died) <= now ? p.died : null;
+      out.push({ id, name: String(p.name).slice(0, 40), date: p.date, time, died });
+    }
+    return out;
+  }
+
+  return { mergeDocs, sameDoc, eventId, desiredEvents, planCalendar, nameFrom, parseBirthdays, alreadyHave, birthdayCalendars, cleanImport };
 });

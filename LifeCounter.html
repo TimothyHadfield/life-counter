@@ -269,7 +269,7 @@ function render() {
   app.innerHTML = `
     <div class="top">
       <div class="chips">
-        ${state.people.map(x => `<button class="chip ${x.id === p.id ? 'on' : ''}" data-pick="${x.id}">${esc(x.name)}</button>`).join('')}
+        ${state.people.map(x => `<button class="chip ${x.id === p.id ? 'on' : ''}" data-pick="${esc(x.id)}">${esc(x.name)}</button>`).join('')}
         <button class="chip add" data-add>+ Add</button>
       </div>
       <button class="iconbtn" data-people aria-label="People and backup">${ICON.people}</button>
@@ -296,7 +296,7 @@ function render() {
 }
 
 function setTab(t) {
-  state.tab = t; save();
+  state.tab = t; persist(); // tab, picked person and Past toggle are this device's view only: no cloud write
   document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'v-' + t));
   document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
 }
@@ -412,9 +412,9 @@ function renderFriends() {
 function formHTML(p) {
   return `
     <label class="field"><span>Name</span><input name="name" maxlength="40" value="${p ? esc(p.name) : ''}" placeholder="${state.people.length ? 'Name' : 'Me'}" required></label>
-    <label class="field"><span>Birthday</span><input name="date" type="date" value="${p ? p.date : ''}" required></label>
-    <label class="field"><span>Birth time (optional)</span><input name="time" type="time" value="${p && p.time ? p.time : ''}"></label>
-    ${state.people.length ? `<label class="field"><span>Passed (optional)</span><input name="died" type="date" value="${p && p.died ? p.died : ''}"></label>` : ''}
+    <label class="field"><span>Birthday</span><input name="date" type="date" value="${p ? esc(p.date) : ''}" required></label>
+    <label class="field"><span>Birth time (optional)</span><input name="time" type="time" value="${p && p.time ? esc(p.time) : ''}"></label>
+    ${state.people.length ? `<label class="field"><span>Passed (optional)</span><input name="died" type="date" value="${p && p.died ? esc(p.died) : ''}"></label>` : ''}
     <div class="actions"><button class="btn primary" data-save>Save</button>
       ${p ? `<button class="btn" data-cancel>Cancel</button>` : (state.people.length ? `<button class="btn" data-cancel>Cancel</button>` : '')}</div>`;
 }
@@ -520,8 +520,8 @@ function editSheet(p) { openSheet(`<h3>Edit ${esc(p.name)}</h3>${formHTML(p)}`, 
 function peopleSheet() {
   openSheet(`<h3>People</h3>
     <div class="plist">${state.people.map(p => `<div class="p"><div><b>${esc(p.name)}</b>
-      <div class="muted num" style="font-size:13px">${dateStr(L.birthDate(p))}${p.time ? ' · ' + p.time : ''}${p.died ? ' – ' + dateStr(L.diedDate(p)) : ''}</div></div>
-      ${compareBtn(p)}<button class="btn small" data-edit="${p.id}">Edit</button><button class="btn small danger" data-del="${p.id}">Delete</button></div>`).join('')}</div>
+      <div class="muted num" style="font-size:13px">${dateStr(L.birthDate(p))}${p.time ? ' · ' + esc(p.time) : ''}${p.died ? ' – ' + dateStr(L.diedDate(p)) : ''}</div></div>
+      ${compareBtn(p)}<button class="btn small" data-edit="${esc(p.id)}">Edit</button><button class="btn small danger" data-del="${esc(p.id)}">Delete</button></div>`).join('')}</div>
     <div class="actions"><button class="btn primary" data-add>+ Add</button><button class="btn" data-ics-all>Calendar: everyone</button></div>
     <div class="sub">Backup</div>
     <div class="actions"><button class="btn" data-export>Save backup</button><button class="btn" data-import>Load backup</button></div>
@@ -558,9 +558,8 @@ function importBackup() {
   input.onchange = async () => {
     try {
       const data = JSON.parse(await input.files[0].text());
-      const incoming = (data.people || []).filter(p => p && p.name && /^\d{4}-\d{2}-\d{2}$/.test(p.date));
-      const have = new Set(state.people.map(p => p.id));
-      for (const p of incoming) if (!have.has(p.id)) state.people.push({ id: p.id || uid(), name: String(p.name).slice(0, 40), date: p.date, time: p.time || null, died: p.died || null, updated: Date.now() });
+      const incoming = window.LifeSync.cleanImport(data, state.people.map(p => p.id), new Date(), uid);
+      for (const p of incoming) state.people.push({ ...p, updated: Date.now() });
       save(); render(); peopleSheet();
     } catch (e) { alert('That file is not a Life Counter backup.'); }
   };
@@ -594,7 +593,7 @@ function twiceLine(older, younger, day, tag) {
 const CMP_ICON = '<svg viewBox="0 0 24 24"><path d="M7 4L3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg>';
 function compareBtn(a, b) {
   if (state.people.length < 2) return '';
-  return `<button class="cmpbtn" data-cmp="${a.id}" ${b ? `data-cmp-b="${b.id}"` : ''} aria-label="Compare ${esc(a.name)}">${CMP_ICON}</button>`;
+  return `<button class="cmpbtn" data-cmp="${esc(a.id)}" ${b ? `data-cmp-b="${esc(b.id)}"` : ''} aria-label="Compare ${esc(a.name)}">${CMP_ICON}</button>`;
 }
 
 function openCompare(aId, bId) {
@@ -603,7 +602,7 @@ function openCompare(aId, bId) {
   if (!a || !others.length) return;
   if (!bId && others.length > 1) {
     openSheet(`<h3>Compare ${esc(a.name)} with…</h3><div class="pick">
-      ${others.map(o => `<button class="btn" data-cmp="${a.id}" data-cmp-b="${o.id}">${esc(o.name)}</button>`).join('')}</div>
+      ${others.map(o => `<button class="btn" data-cmp="${esc(a.id)}" data-cmp-b="${esc(o.id)}">${esc(o.name)}</button>`).join('')}</div>
       <div class="actions"><button class="btn" data-cancel>Cancel</button></div>`);
     return;
   }
@@ -652,7 +651,7 @@ function compareHTML(a, b, others) {
   }).join('');
   return `
     <div class="cmp-head"><h3>${esc(a.name)} vs</h3>
-      <select aria-label="Compare with">${others.map(o => `<option value="${o.id}" ${o.id === b.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select>
+      <select aria-label="Compare with">${others.map(o => `<option value="${esc(o.id)}" ${o.id === b.id ? 'selected' : ''}>${esc(o.name)}</option>`).join('')}</select>
       <span style="flex:1"></span><button class="btn small" data-cancel>Close</button></div>
     <div class="cmp-sum">${c.gapMs ? `<b>${esc(older.name)}</b> is older by ${gap} · ${fmt(Math.round(c.gapMs / 1000))} seconds<br>
       ${twiceLine(older, younger, c.doubleAgeDay, 'span class="muted"')}` : 'Same birthday and time'}</div>
@@ -678,11 +677,11 @@ document.addEventListener('click', e => {
   }
   if (t.closest('#sheet') && !('cancel' in t.dataset)) return;
   if ('cancel' in t.dataset) return closeSheet();
-  if (t.dataset.pick) { state.selected = t.dataset.pick; save(); render(); }
+  if (t.dataset.pick) { state.selected = t.dataset.pick; persist(); render(); }
   else if (t.dataset.tab) setTab(t.dataset.tab);
   else if ('add' in t.dataset) addSheet();
   else if ('people' in t.dataset) peopleSheet();
-  else if ('past' in t.dataset) { state.showPast = t.checked; save(); renderMilestones(true); }
+  else if ('past' in t.dataset) { state.showPast = t.checked; persist(); renderMilestones(true); }
   else if ('ics' in t.dataset) { const p = person(); downloadIcs([p], 'life-counter-' + p.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')); }
   else if (t.dataset.help) openSheet(HELP[t.dataset.help]);
 });

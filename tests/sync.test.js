@@ -153,5 +153,31 @@ test('already have: by google id or same name + month/day', () => {
   assert.ok(!S.alreadyHave(people, { googleId: 'g2', name: 'Jess', date: '2001-08-09' }));
 });
 
+test('backup import: markup in id/time/died never gets in', () => {
+  const now = new Date(2026, 9, 16, 12);
+  let n = 0; const makeId = () => 'new' + (++n);
+  const file = { app: 'life-counter', v: 2, people: [
+    { id: 'x" onfocus="alert(1)" autofocus="', name: 'Evil', date: '1999-01-01', time: '<img src=x onerror=alert(1)>', died: '<img src=y onerror=alert(1)>' },
+    { id: 'k3j9x2ab', name: 'Robbie', date: '2004-03-15', time: '06:45', died: null, updated: 5 },
+    { id: 'k3j9x2ab', name: 'Robbie again', date: '2004-03-15' },
+    { id: 'have1', name: 'Already here', date: '1990-01-01' },
+    { id: 'dead1', name: 'Grandpa', date: '1930-02-02', time: '25:00', died: '2020-07-01' },
+    { id: 'bad1', name: 'Died before born', date: '2000-01-01', died: '1999-01-01' },
+    { id: 'fut1', name: 'Not born yet', date: '2999-01-01' },
+    { id: 'nod1', name: 'Fake day', date: '2001-02-31' },
+    { id: 'nameless', date: '2001-02-03' },
+    null, 'junk',
+  ] };
+  const got = S.cleanImport(file, ['have1'], now, makeId);
+  assert.deepStrictEqual(got.map(p => [p.id, p.name, p.date, p.time, p.died]), [
+    ['new1', 'Evil', '1999-01-01', null, null],
+    ['k3j9x2ab', 'Robbie', '2004-03-15', '06:45', null],
+    ['dead1', 'Grandpa', '1930-02-02', null, '2020-07-01'],
+    ['bad1', 'Died before born', '2000-01-01', null, null],
+  ]);
+  assert.deepStrictEqual(S.cleanImport({}, [], now, makeId), []);
+  assert.deepStrictEqual(S.cleanImport({ people: 'nope' }, [], now, makeId), []);
+});
+
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
