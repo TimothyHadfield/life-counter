@@ -1,4 +1,5 @@
 .claude/test/
+.claude/worktrees/
 *.ics
 life-counter-backup*.json
 *-debug.log

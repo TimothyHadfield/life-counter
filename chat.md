@@ -21,3 +21,10 @@ _One entry per session, newest at the bottom, capped at 60 KB. Older entries are
 - **Built:** 5af28bc render() keeps `.chips` scrollLeft + keeps picked chip in view, touch-action pan-x. bad16fc Find birthdays searches every readable calendar (calendarList scope, token v2 → one reconnect), birthday-named calendars read in full, 🎂/bday titles, year from "Born …" description.
 - **Verified how:** Playwright WebKit iPhone 15, 10 people: live site snapped scrollLeft 400→0 on tap, fix keeps 400 (screenshot checked). sync tests 16/16; new tests failed on old sync.js. Real family-birthday shape learned from the robert7hadfield connector account (mistake: not Tim's account; Tim is timhadfield7).
 - **Open:** Tim to retry Find birthdays; swipe feel on real iPhone; Sync milestones on real calendar.
+
+## 2026-10-17 · Batch 1: auto-update + confident fixes (builder)
+- **Asked (Tim via manager):** "any fixes or improvements you feel confident about go ahead and do, pretty much always. You don't have to ask me." Brief: new builds reach phones without a hard refresh; fix confident open bugs.
+- **Decided:** version.json + `?v=<BUILD>` reload (no service worker); stamp at bottom of Account sheet ("Build …").
+- **Built (5db9fbc):** auto-update + stamp; `LifeCalc.isFutureDay` (tomorrow's date got in after 6 pm Utah, form + backup import); edit save by id (edit lost if a cloud snapshot arrived while the form was open) + stale People-sheet rows re-render; `data:,` favicon; tests dates/build/ui; CLAUDE.md bump steps.
+- **Verified how:** new tests failed on old code (dates 3 fails, build 4 fails, ui 7/8 fails), all green on main (21+17+5+5+8). WebKit: old page + newer version.json → exactly 2 page loads, lands on new BUILD; stale page never loops; waits while a sheet is open. phone-view 393 + desktop: stamp visible, no console errors, no overflow. Live: curl version.json + LifeCounter.html show 2026-10-17.1; live phone-view shows "Build 2026-10-17.1".
+- **Open:** real-iPhone auto-update; wording items for Tim ("Birthdays stay on this device only", "twice Me's age", stamp wording).

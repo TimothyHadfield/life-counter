@@ -1,7 +1,7 @@
 # Life Counter — progress (handoff for Claude)
 
 ## START HERE
-_Last updated 2026-10-15 (late, after commit de44aa9). For Claude only; Tim doesn't read this. Catch-up authorizes nothing: only "Authorized next steps" below is approved work._
+_Last updated 2026-10-17 (after commit 5db9fbc, live build 2026-10-17.1). For Claude only; Tim doesn't read this. Catch-up authorizes nothing: only "Authorized next steps" below is approved work._
 1. Read this file (it's short on purpose).
 2. Read `direction.md` (it overrules everything).
 3. Skim the last 3 entries of `chat.md`. Plan for accounts/calendar: `docs/accounts-calendar-plan.md`.
@@ -21,9 +21,11 @@ Accounts + Google Calendar + compare + passed are built and live. Tim has signed
 | Google Calendar | live, untested with real Google data | "Life Counter" calendar, sync on tap + auto 4s after edits while token (1h) valid |
 | Birthday import | live; works on Tim's account except family (fix pending his retry) | primary birthday events + every readable calendar (`birthdayCalendars`: birthday-named → all events, others → q=birthday), checkbox sheet |
 | .ics / JSON backup | live | 2026-10-16 sweep: backup import now validated (`LifeSync.cleanImport`) |
+| Auto-update + build stamp | live 2026-10-17 (build 2026-10-17.1) | version.json check on open/return, reloads once with `?v=`; stamp at bottom of Account sheet. **Bump BUILD + every `?v=` + version.json on each push** (CLAUDE.md "Shipping a change") |
 
 ## Authorized next steps
-- 2026-10-15 · Build accounts + calendar + compare + passed (done). Nothing further authorized yet.
+- 2026-10-15 · Build accounts + calendar + compare + passed (done).
+- 2026-10-17 · Tim: "any fixes or improvements you feel confident about go ahead and do, pretty much always. You don't have to ask me." Not covered: redesigns, layout, new wording, new features, money, real-data deletes/migrations.
 
 ## Standing instructions (Tim's words)
 - "Google-only sign-in". Guest (device-only) mode stays.
@@ -55,6 +57,8 @@ Accounts + Google Calendar + compare + passed are built and live. Tim has signed
 - 2026-10-15 · Account icon top-right opens Account sheet (sign in / status / calendar / sign out).
 - 2026-10-15 · Calendar sync runs on tap (no server). Birthdays without a year ask for one.
 - 2026-10-16 · Sweep (no visual changes): crafted backup file could inject HTML via id/time/died (Firebase audit Low 1) → `cleanImport` + `esc()`; tab/pick/Past taps use `persist()` (were pushing to Firestore + starting calendar auto-sync, 8 pushes per 6 taps measured); meta description + aria-label "Help". Added CLAUDE.md. Tests 21/21 + 17/17.
+- 2026-10-17 · Auto-update via `version.json` + `?v=<BUILD>` (no service worker); never reloads mid-edit; sessionStorage `lifecounter.reloadedFor` = once per build per tab. Stamp wording "Build 2026-10-17.1" (plain default, Tim's call).
+- 2026-10-17 · Future-date checks use `LifeCalc.isFutureDay` (local day); `new Date('YYYY-MM-DD')` let tomorrow in after 6 pm Utah. Edit save finds the person by id (a cloud snapshot while the form was open lost the edit). Favicon: `data:,` (no visible icon).
 - 2026-10-15 · Phone: 4 bottom tabs. Laptop ≥900px: all panels. Dark theme, amber accent, no card borders.
 
 ## NOT verified
@@ -63,6 +67,8 @@ Accounts + Google Calendar + compare + passed are built and live. Tim has signed
 - Whether Google birthday events carry the birth year (shared family calendar puts it in the description: "Born November 8, 2001", now parsed)
 - Find birthdays across shared calendars (2026-10-15 fix, needs `calendar.calendarlist.readonly`; token `v:2` forces one reconnect) · needs Tim's real run
 - iPhone popup flow, iOS .ics import, JSON backup load on iPhone
+- Auto-update on a real iPhone / home-screen app (proved in WebKit with a local server only). Phones still on a pre-2026-10-17 page need one last refresh (old page has no checker).
+- Favicon 404 gone: headless WebKit/Chrome never request favicons, so checked statically only (build.test.js)
 
 ## Rejected / parked
 - ~~Device-only, no accounts~~ · 2026-10-15 · reversed by Tim's second ask
@@ -74,6 +80,6 @@ Accounts + Google Calendar + compare + passed are built and live. Tim has signed
 - `sync.js` · merge, calendar event plan, birthday parsing
 - `cloud.js` · Firebase auth/Firestore + Calendar API calls (`window.LCCloud`)
 - `firestore.rules`, `firebase.json`, `.firebaserc` · deploy: `firebase deploy --only firestore:rules`
-- Tests: `node tests/lifecalc.test.js` (21/21), `node tests/sync.test.js` (17/17, 2026-10-16), rules `tests/rules.test.mjs` 12/12 · 2026-10-15
+- Tests (2026-10-17): lifecalc 21/21, sync 17/17, dates 5/5, build 5/5, `node tests/ui.test.mjs` 8/8 (WebKit, Playwright from ~/.claude/tools, cloud.js stubbed); rules `tests/rules.test.mjs` 12/12 · 2026-10-15
 - Project path: `C:\Users\timha\OneDrive\Desktop\my-website\Code Projects\Life Counter`; push to main redeploys Pages.
 - Live: https://timothyhadfield.github.io/life-counter/ · repo TimothyHadfield/life-counter
