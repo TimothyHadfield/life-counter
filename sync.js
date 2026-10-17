@@ -170,12 +170,12 @@
   function cleanImport(data, haveIds, now, makeId) {
     const have = new Set(haveIds), out = [];
     for (const p of (data && Array.isArray(data.people) ? data.people : [])) {
-      if (!p || !p.name || !realDate(p.date) || new Date(p.date) > now) continue;
+      if (!p || !p.name || !realDate(p.date) || L.isFutureDay(p.date, now)) continue;
       const id = typeof p.id === 'string' && ID_RE.test(p.id) ? p.id : makeId();
       if (have.has(id)) continue;
       have.add(id);
       const time = typeof p.time === 'string' && TIME_RE.test(p.time) ? p.time : null;
-      const died = realDate(p.died) && p.died >= p.date && new Date(p.died) <= now ? p.died : null;
+      const died = realDate(p.died) && p.died >= p.date && !L.isFutureDay(p.died, now) ? p.died : null;
       out.push({ id, name: String(p.name).slice(0, 40), date: p.date, time, died });
     }
     return out;

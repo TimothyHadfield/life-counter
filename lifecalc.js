@@ -23,6 +23,13 @@
     return new Date(y, m - 1, d, 12, 0, 0, 0);
   }
 
+  // Is 'YYYY-MM-DD' after today on this device's calendar? (new Date('YYYY-MM-DD') is UTC
+  // midnight, which let tomorrow's date through after 6 pm in Utah. Fixed 2026-10-17.)
+  function isFutureDay(s, now) {
+    const p = n => String(n).padStart(2, '0');
+    return s > `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+  }
+
   // Ages stop counting at the passed date.
   function asOf(person, now) {
     const end = diedDate(person);
@@ -300,7 +307,7 @@
 
   return {
     SEC, MIN, HOUR, DAY, WEEK, MILESTONES, PLANETS,
-    birthDate, diedDate, asOf, eventTitle, addMonths, addDays, calendarAge, ages, milestones,
+    birthDate, diedDate, isFutureDay, asOf, eventTitle, addMonths, addDays, calendarAge, ages, milestones,
     zodiac, chineseZodiac, generation, nextBirthday, goldenBirthday, facts,
     countLeapDays, compare, buildIcs,
   };

@@ -24,7 +24,16 @@ Plan for accounts/calendar: `docs/accounts-calendar-plan.md`.
 
 ## Run and test
 - Local: `python -m http.server 8129` in this folder (background), open http://localhost:8129/LifeCounter.html
-- Tests: `node tests/lifecalc.test.js` and `node tests/sync.test.js` (no npm install needed)
+- Tests: `node tests/lifecalc.test.js`, `node tests/sync.test.js`, `node tests/dates.test.js`, `node tests/build.test.js` (no npm install needed)
+  and `node tests/ui.test.mjs` (WebKit via the Playwright in `~/.claude/tools`; own local server, cloud.js stubbed, no Firebase)
+
+## Shipping a change (every push that changes LifeCounter.html, lifecalc.js, sync.js or cloud.js)
+- **Bump the build in three places, same value** (`YYYY-MM-DD.N`): `const BUILD` in LifeCounter.html, every `?v=` on its
+  `<script src>` tags, and `version.json`. `tests/build.test.js` fails if they disagree.
+- Why: Pages caches for 10 min and there's no service worker. On open and on return to the app, the page fetches
+  `version.json` (no-store); if it's newer it reloads once with `?v=<build>` (not while a sheet is open or something is
+  typed; once per build per tab via sessionStorage `lifecounter.reloadedFor`). The build shows at the bottom of the Account sheet.
+- After pushing: `curl -s https://timothyhadfield.github.io/life-counter/version.json` until it shows the new build.
 - Rules: needs `@firebase/rules-unit-testing` + `firebase` resolvable, then
   `firebase emulators:exec --only firestore "node tests/rules.test.mjs firestore.rules"` (port 8087)
 - UI: phone-view with `--local "lifecounter.v1=<json>"` to seed people. Hidden checkbox `[data-past]` can't be clicked; click `.sw`.

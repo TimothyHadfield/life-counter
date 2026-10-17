@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Life Counter</title>
+<link rel="icon" href="data:,">
 <meta name="description" content="How old you and your friends are in every unit, live to the second, with dated milestones like 1 billion seconds.">
 <style>
   :root {
@@ -184,10 +185,12 @@
 <div class="sheet-bg" id="sheetBg"></div>
 <div class="sheet" id="sheet"></div>
 
-<script src="lifecalc.js"></script>
-<script src="sync.js"></script>
+<!-- Bump BUILD, every ?v= below and version.json together (tests/build.test.js checks). -->
+<script src="lifecalc.js?v=2026-10-17.1"></script>
+<script src="sync.js?v=2026-10-17.1"></script>
 <script>
 'use strict';
+const BUILD = '2026-10-17.1';
 const L = window.LifeCalc;
 const STORE = 'lifecounter.v1';
 const $ = (s, el = document) => el.querySelector(s);
@@ -429,10 +432,17 @@ function bindForm(root, existing) {
     const date = $('[name=date]', root).value;
     const time = $('[name=time]', root).value || null;
     if (!name) { $('[name=name]', root).focus(); return; }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || new Date(date) > new Date()) { $('[name=date]', root).focus(); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || L.isFutureDay(date, new Date())) { $('[name=date]', root).focus(); return; }
     const diedEl = $('[name=died]', root), died = diedEl && diedEl.value || null;
-    if (died && (died < date || new Date(died) > new Date())) { diedEl.focus(); return; }
-    if (existing) { Object.assign(existing, { name, date, time, died, updated: Date.now() }); delete existing.noYear; }
+    if (died && (died < date || L.isFutureDay(died, new Date()))) { diedEl.focus(); return; }
+    if (existing) {
+      // A cloud update while the form was open replaces state.people with new objects,
+      // so edit the current copy by id (editing `existing` itself was silently lost). 2026-10-17
+      const fields = { name, date, time, died, updated: Date.now() };
+      const cur = state.people.find(x => x.id === existing.id);
+      if (cur) { Object.assign(cur, fields); delete cur.noYear; }
+      else { const { noYear, ...rest } = existing; state.people.push({ ...rest, ...fields }); }
+    }
     else { const p = { id: uid(), name, date, time, died, updated: Date.now() }; state.people.push(p); state.selected = p.id; }
     save(); closeSheet(); render();
   };
@@ -445,7 +455,40 @@ function openSheet(html, after, kind = null) {
   sheetKind = kind;
   $('#sheet').innerHTML = html; document.body.classList.add('open'); if (after) after($('#sheet'));
 }
-function closeSheet() { sheetKind = null; document.body.classList.remove('open'); }
+function closeSheet() { sheetKind = null; document.body.classList.remove('open'); if (newerBuild) setTimeout(checkBuild, 0); }
+
+// ---------- new builds reach phones without a hard refresh ----------
+// GitHub Pages lets the phone cache this page for 10 minutes. On open and on coming back,
+// ask version.json (never cached) which build is live; if it's newer, load the page again
+// with ?v=<build> (a new address, so nothing cached is used). Never while a sheet is open or
+// something is being typed, and at most once per build per tab session, so it can't loop.
+let newerBuild = null;
+function busy() {
+  if (document.body.classList.contains('open')) return true;
+  const a = document.activeElement;
+  if (a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)) return true;
+  return [...document.querySelectorAll('.welcome input')].some(i => i.value); // half-filled welcome form
+}
+function checkBuild() {
+  if (!/^https?:$/.test(location.protocol)) return;
+  fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
+    .then(r => r.ok ? r.json() : null)
+    .then(j => {
+      const live = j && typeof j.build === 'string' ? j.build : null;
+      if (!live || live === BUILD) { newerBuild = null; return; }
+      newerBuild = live;
+      if (busy()) return; // closeSheet / next return to the app tries again
+      const key = 'lifecounter.reloadedFor';
+      try {
+        if (sessionStorage.getItem(key) === live) return;
+        sessionStorage.setItem(key, live);
+      } catch (e) { return; } // no storage = no loop guard, so don't reload
+      const u = new URL(location.href);
+      u.searchParams.set('v', live);
+      location.replace(u.href);
+    })
+    .catch(() => {});
+}
 
 // ---------- account + Google Calendar ----------
 const SAVE_WORDS = { loading: 'Loading…', saved: 'Saved to your account', saving: 'Saving…', offline: 'Offline · saves when back online', error: 'Couldn’t save · will retry' };
@@ -456,17 +499,20 @@ function refreshCloudBits() {
   if (sheetKind === 'account') accountSheet();
 }
 
+// Which build this page is, so "I can't see it" can be checked on the phone.
+const stampHTML = () => `<p class="note num build">Build ${esc(BUILD)}</p>`;
+
 function accountSheet() {
   const C = window.LCCloud;
   if (!C) {
     openSheet(`<h3>Account</h3><p class="muted">Accounts can’t load right now. Check your connection.</p>
-      <div class="actions"><button class="btn" data-cancel>Close</button></div>`, null, 'account');
+      <div class="actions"><button class="btn" data-cancel>Close</button></div>${stampHTML()}`, null, 'account');
     return;
   }
   if (!C.user) {
     openSheet(`<h3>Account</h3><p>Save your people on every device.</p>
       <div class="actions"><button class="btn primary" data-signin>Continue with Google</button><button class="btn" data-cancel>Close</button></div>
-      <p class="note">Without an account, people stay on this device only.</p>`, null, 'account');
+      <p class="note">Without an account, people stay on this device only.</p>${stampHTML()}`, null, 'account');
     return;
   }
   const linked = !!state.calendarId;
@@ -479,7 +525,7 @@ function accountSheet() {
       <button class="btn" data-findbd>Find birthdays</button>
     </div>
     <p class="status">${esc(C.calStatus || (linked ? 'Milestones go in your “Life Counter” calendar.' : ''))}</p>
-    <div class="actions" style="margin-top:14px"><button class="btn" data-signout>Sign out</button><button class="btn" data-cancel>Close</button></div>`, null, 'account');
+    <div class="actions" style="margin-top:14px"><button class="btn" data-signout>Sign out</button><button class="btn" data-cancel>Close</button></div>${stampHTML()}`, null, 'account');
 }
 
 function birthdaySheet(found) {
@@ -529,6 +575,9 @@ function peopleSheet() {
     <p class="note">Birthdays stay on this device only.</p>`, el => {
     el.onclick = e => {
       const t = e.target.closest('button'); if (!t) return;
+      // The list can be stale if another device changed people while this sheet was open.
+      const gone = id => !state.people.some(p => p.id === id);
+      if ((t.dataset.edit && gone(t.dataset.edit)) || (t.dataset.del && gone(t.dataset.del))) return peopleSheet();
       if (t.dataset.edit) editSheet(state.people.find(p => p.id === t.dataset.edit));
       else if (t.dataset.del) {
         const p = state.people.find(x => x.id === t.dataset.del);
@@ -695,10 +744,15 @@ setInterval(() => {
   const m = new Date().getMinutes();
   if (m !== lastMinute) { lastMinute = m; keepScroll('v-ms', renderMilestones); keepScroll('v-friends', renderFriends); }
 }, 1000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden && state.people.length) render(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  if (state.people.length) render();
+  checkBuild();
+});
 
 render();
+checkBuild();
 </script>
-<script type="module" src="cloud.js"></script>
+<script type="module" src="cloud.js?v=2026-10-17.1"></script>
 </body>
 </html>
