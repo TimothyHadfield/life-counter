@@ -37,9 +37,10 @@ test('local files referenced exist', () => {
   for (const m of html.matchAll(/<script\b[^>]*\bsrc="([^"?:]+)\?v=/g)) assert.ok(fs.existsSync(path.join(root, m[1])), m[1]);
 });
 
-// Without an icon link browsers ask for /favicon.ico and log a 404 (sweep 2026-10-16).
+// Without an icon link browsers ask for /favicon.ico and log a 404 (sweep 2026-10-16). Site icon added 2026-10-17.
 test('has an icon link so there is no favicon.ico 404', () => {
-  assert.ok(/<link rel="icon" href="data:,">/.test(html));
+  assert.ok(/<link rel="icon" href="icon.svg[?"]/.test(html), "tab icon link");
+  assert.ok(/<link rel="apple-touch-icon" href="apple-touch-icon.png[?"]/.test(html), "home-screen icon link");
 });
 
 console.log(`${passed} passed, ${failed} failed`);

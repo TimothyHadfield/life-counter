@@ -7,7 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Life Counter</title>
-<link rel="icon" href="data:,">
+<link rel="icon" href="icon.svg?v=2026-10-17.2" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=2026-10-17.2">
 <meta name="description" content="How old you and your friends are in every unit, live to the second, with dated milestones like 1 billion seconds.">
 <style>
   :root {
@@ -186,11 +187,11 @@
 <div class="sheet" id="sheet"></div>
 
 <!-- Bump BUILD, every ?v= below and version.json together (tests/build.test.js checks). -->
-<script src="lifecalc.js?v=2026-10-17.1"></script>
-<script src="sync.js?v=2026-10-17.1"></script>
+<script src="lifecalc.js?v=2026-10-17.2"></script>
+<script src="sync.js?v=2026-10-17.2"></script>
 <script>
 'use strict';
-const BUILD = '2026-10-17.1';
+const BUILD = '2026-10-17.2';
 const L = window.LifeCalc;
 const STORE = 'lifecounter.v1';
 const $ = (s, el = document) => el.querySelector(s);
@@ -753,6 +754,6 @@ document.addEventListener('visibilitychange', () => {
 render();
 checkBuild();
 </script>
-<script type="module" src="cloud.js?v=2026-10-17.1"></script>
+<script type="module" src="cloud.js?v=2026-10-17.2"></script>
 </body>
 </html>

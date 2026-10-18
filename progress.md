@@ -21,7 +21,8 @@ Accounts + Google Calendar + compare + passed are built and live. Tim has signed
 | Google Calendar | live, untested with real Google data | "Life Counter" calendar, sync on tap + auto 4s after edits while token (1h) valid |
 | Birthday import | live; works on Tim's account except family (fix pending his retry) | primary birthday events + every readable calendar (`birthdayCalendars`: birthday-named → all events, others → q=birthday), checkbox sheet |
 | .ics / JSON backup | live | 2026-10-16 sweep: backup import now validated (`LifeSync.cleanImport`) |
-| Auto-update + build stamp | live 2026-10-17 (build 2026-10-17.1) | version.json check on open/return, reloads once with `?v=`; stamp at bottom of Account sheet. **Bump BUILD + every `?v=` + version.json on each push** (CLAUDE.md "Shipping a change") |
+| Auto-update + build stamp | live 2026-10-17 (build 2026-10-17.2) | version.json check on open/return, reloads once with `?v=`; stamp at bottom of Account sheet. **Bump BUILD + every `?v=` + version.json on each push** (CLAUDE.md "Shipping a change") |
+| Site icon | live 2026-10-17 (build .2) | `icon.svg` (tab) + `apple-touch-icon.png` 180px (iPhone home screen): amber hourglass on the dark background; both links carry `?v=`; `tests/build.test.js` now checks for them instead of `data:,` |
 
 ## Authorized next steps
 - 2026-10-15 · Build accounts + calendar + compare + passed (done).
